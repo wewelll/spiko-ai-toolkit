@@ -1,0 +1,2 @@
+apps/cli/src/generated/
+packages/*/src/generated.ts

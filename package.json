@@ -1,36 +1,30 @@
 {
-  "name": "spiko-mcp-server",
-  "version": "0.1.0",
+  "name": "spiko-api-toolkit",
+  "version": "0.2.0",
   "private": true,
-  "description": "An Effect-native Model Context Protocol server for Spiko's API.",
+  "description": "Effect-native clients, CLI, and MCP server for Spiko's APIs.",
   "license": "MIT",
-  "bin": {
-    "spiko-mcp-server": "dist/index.js"
-  },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
   "type": "module",
   "scripts": {
-    "build": "rolldown -c",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
-    "dev": "node --watch --experimental-strip-types src/index.ts",
+    "build": "pnpm -r --if-present build",
+    "check": "pnpm check:code && pnpm generate:check",
+    "check:code": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
+    "dev:cli": "pnpm --filter @spiko/cli dev",
+    "dev:mcp": "pnpm --filter @spiko/mcp-server dev",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
+    "generate:check": "pnpm generate:clients && git diff --exit-code -- openapi packages/public-api-client/src/generated.ts packages/investor-api-client/src/generated.ts packages/distributor-api-client/src/generated.ts apps/cli/src/generated/operations.ts",
+    "generate:clients": "node --experimental-strip-types tools/generate-clients.ts",
     "lint": "oxlint --deny-warnings .",
-    "start": "node dist/index.js",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@effect/platform-node": "4.0.0-beta.100",
-    "effect": "4.0.0-beta.100"
+    "specs:update": "node --experimental-strip-types tools/generate-clients.ts --fetch",
+    "test": "pnpm --filter './packages/**' -r build && pnpm -r --if-present test",
+    "typecheck": "tsc --noEmit && pnpm -r --if-present typecheck"
   },
   "devDependencies": {
+    "@effect/openapi-generator": "4.0.0-beta.101",
+    "@effect/platform-node": "4.0.0-beta.101",
     "@types/node": "24.10.14",
+    "effect": "4.0.0-beta.101",
     "oxfmt": "0.59.0",
     "oxlint": "1.74.0",
     "rolldown": "1.2.0",

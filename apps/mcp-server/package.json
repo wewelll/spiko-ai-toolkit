@@ -1,0 +1,30 @@
+{
+  "name": "@spiko/mcp-server",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Effect-native Model Context Protocol server for Spiko's Public API.",
+  "bin": {
+    "spiko-mcp-server": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "rolldown -c",
+    "dev": "node --watch --experimental-strip-types src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@effect/platform-node": "catalog:",
+    "@spiko/public-api-client": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "rolldown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

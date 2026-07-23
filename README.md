@@ -1,17 +1,36 @@
-# Spiko MCP Server
+# Spiko API Toolkit
 
-An Effect-native Model Context Protocol server for [Spiko's API](https://docs.spiko.io/developers/introduction).
+An Effect-native PNPM monorepo for [Spiko's APIs](https://docs.spiko.io/developers/introduction).
 
-The bootstrap exposes all 15 read-only operations from Spiko's unauthenticated Public API over MCP stdio. It intentionally does not expose Investor or Distributor API mutations yet.
+It contains generated, schema-decoding HTTP clients for every Spiko API, a `spiko` CLI, and an MCP stdio server. The MCP surface remains intentionally restricted to the unauthenticated, read-only Public API.
 
 ## Stack
 
 - TypeScript 7
 - Effect 4 beta and Effect Platform
+- Effect's official OpenAPI generator
 - Effect's native MCP module
 - Node.js 24 LTS
 - PNPM 11
 - Vitest, Rolldown, Oxlint, and Oxfmt
+
+## Workspace
+
+```text
+apps/
+  cli/                         # `spiko` CLI
+  mcp-server/                  # read-only MCP stdio server
+packages/
+  public-api-client/           # generated Public API client
+  investor-api-client/         # generated Investor API client
+  distributor-api-client/      # generated Distributor API client
+openapi/                       # committed source specifications
+tools/generate-clients.ts      # Effect-based downloader and generator
+```
+
+Each client is generated with
+[`@effect/openapi-generator`](https://github.com/Effect-TS/effect/tree/main/packages/tools/openapi-generator)
+in `httpclient` mode. Responses are decoded at runtime with Effect Schema.
 
 ## Setup
 
@@ -23,31 +42,76 @@ pnpm check
 pnpm build
 ```
 
-The default API endpoint is `https://public-api.spiko.io/v0`. Override it for a mock or proxy with `SPIKO_API_BASE_URL`.
+## Generated clients
 
-## Run
+The committed OpenAPI specifications make normal generation reproducible and offline:
+
+```sh
+pnpm generate:clients
+```
+
+Download the latest Public, Investor, and Distributor specs before regenerating:
+
+```sh
+pnpm specs:update
+```
+
+A scheduled GitHub Action runs this refresh every Monday and opens or updates a pull request when generated output changes.
+
+Client configuration:
+
+- Public: `SPIKO_PUBLIC_API_BASE_URL`
+- Investor: `SPIKO_INVESTOR_ACCESS_TOKEN`, or `SPIKO_INVESTOR_CLIENT_ID` and `SPIKO_INVESTOR_CLIENT_SECRET`
+- Distributor: `SPIKO_DISTRIBUTOR_CLIENT_ID` and `SPIKO_DISTRIBUTOR_CLIENT_SECRET`
+- Optional authenticated endpoint overrides: `SPIKO_INVESTOR_API_BASE_URL` and `SPIKO_DISTRIBUTOR_API_BASE_URL`
+
+Secrets are loaded through Effect Config as redacted values.
+
+## CLI
+
+List the generated operations:
+
+```sh
+node apps/cli/dist/index.js operations public
+node apps/cli/dist/index.js operations investor
+node apps/cli/dist/index.js operations distributor
+```
+
+Call an operation using JSON objects for its OpenAPI parameter groups:
+
+```sh
+node apps/cli/dist/index.js call public GetFund \
+  --path '{"fundId":"00000000-0000-0000-0000-000000000000"}'
+
+node apps/cli/dist/index.js call public GetLatestExchangeRate \
+  --params '{"fundId":"...","baseCurrency":"EUR","quoteCurrency":"USD"}'
+```
+
+The generated client validates response bodies. Required OpenAPI parameters are checked before the request. Every non-GET/HEAD call requires `--confirm`; idempotency headers declared by Spiko must be supplied in `--params`.
+
+## MCP server
 
 For development:
 
 ```sh
-pnpm dev
+pnpm dev:mcp
 ```
 
 For the bundled server:
 
 ```sh
 pnpm build
-pnpm start
+node apps/mcp-server/dist/index.js
 ```
 
-MCP clients should launch `node` with the absolute path to `dist/index.js`. For example:
+MCP clients should launch `node` with the absolute path to the MCP bundle:
 
 ```json
 {
   "mcpServers": {
     "spiko": {
       "command": "node",
-      "args": ["/absolute/path/to/spiko-mcp-server/dist/index.js"]
+      "args": ["/absolute/path/to/spiko-mcp-server/apps/mcp-server/dist/index.js"]
     }
   }
 }
@@ -66,6 +130,7 @@ Every tool is annotated as read-only, non-destructive, and idempotent.
 ## Development
 
 ```sh
+pnpm generate:check
 pnpm format
 pnpm lint
 pnpm typecheck
@@ -73,7 +138,7 @@ pnpm test
 pnpm build
 ```
 
-See [AGENTS.md](./AGENTS.md) for the constraints and architecture expected of OpenCode and other coding agents.
+See [AGENTS.md](./AGENTS.md) for the constraints and architecture expected of OpenCode and other coding agents. Generated files contain a header and must never be edited manually.
 
 ## License
 

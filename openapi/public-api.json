@@ -1,0 +1,3527 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Spiko Public API",
+    "version": "v0",
+    "description": "The Public API provides access to public financial data about the Spiko Funds. You can retrieve detailed information about our Funds, their portfolio, their yield or their share classes."
+  },
+  "paths": {
+    "/funds/{fundId}": {
+      "get": {
+        "tags": [
+          "Funds"
+        ],
+        "operationId": "Get Fund",
+        "parameters": [
+          {
+            "name": "fundId",
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "description": "a Universally Unique Identifier",
+              "format": "uuid"
+            },
+            "required": true,
+            "description": "a Universally Unique Identifier"
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "slug",
+                    "timezone",
+                    "executionMethod",
+                    "nonOperatingDays",
+                    "launchDay"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "a Universally Unique Identifier",
+                      "format": "uuid"
+                    },
+                    "slug": {
+                      "$ref": "#/components/schemas/FundSlug"
+                    },
+                    "timezone": {
+                      "type": "string",
+                      "enum": [
+                        "Europe/Paris",
+                        "Europe/Dublin",
+                        "Europe/London",
+                        "Europe/Luxembourg"
+                      ]
+                    },
+                    "executionMethod": {
+                      "type": "string",
+                      "enum": [
+                        "knownNAVs",
+                        "unknownNAVs"
+                      ]
+                    },
+                    "nonOperatingDays": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "title": "Day",
+                        "description": "a day in ISO format \"YYYY-MM-DD\""
+                      }
+                    },
+                    "launchDay": {
+                      "type": "string",
+                      "title": "Day",
+                      "description": "a day in ISO format \"YYYY-MM-DD\""
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpApiDecodeError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFound"
+          }
+        }
+      }
+    },
+    "/funds/": {
+      "get": {
+        "tags": [
+          "Funds"
+        ],
+        "operationId": "Get all Funds",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "slug",
+                      "timezone",
+                      "executionMethod",
+                      "nonOperatingDays",
+                      "launchDay"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "a Universally Unique Identifier",
+                        "format": "uuid"
+                      },
+                      "slug": {
+                        "$ref": "#/components/schemas/FundSlug"
+                      },
+                      "timezone": {
+                        "type": "string",
+                        "enum": [
+                          "Europe/Paris",
+                          "Europe/Dublin",
+                          "Europe/London",
+                          "Europe/Luxembourg"
+                        ]
+                      },
+                      "executionMethod": {
+                        "type": "string",
+                        "enum": [
+                          "knownNAVs",
+                          "unknownNAVs"
+                        ]
+                      },
+                      "nonOperatingDays": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "title": "Day",
+                          "description": "a day in ISO format \"YYYY-MM-DD\""
+                        }
+                      },
+                      "launchDay": {
+                        "type": "string",
+                        "title": "Day",
+                        "description": "a day in ISO format \"YYYY-MM-DD\""
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpApiDecodeError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/share-classes/": {
+      "get": {
+        "tags": [
+          "Share Classes"
+        ],
+        "operationId": "Get all Share Classes",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "fundId",
+                          "isin",
+                          "navDecimals",
+                          "shareDecimals",
+                          "currency",
+                          "tokens",
+                          "useOfIncome",
+                          "minimumInitialSubscription",
+                          "minimumSubsequentSubscription",
+                          "minimumRedemption",
+                          "subscriptionFees",
+                          "redemptionFees",
+                          "managementFees",
+                          "intermediaryShareClasses",
+                          "data",
+                          "symbol"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "a Universally Unique Identifier",
+                            "format": "uuid"
+                          },
+                          "fundId": {
+                            "type": "string",
+                            "description": "a Universally Unique Identifier",
+                            "format": "uuid"
+                          },
+                          "isin": {
+                            "title": "Isin",
+                            "type": "string",
+                            "description": "A valid ISIN"
+                          },
+                          "navDecimals": {
+                            "type": "integer",
+                            "description": "a number between 0 and 20",
+                            "title": "between(0, 20)",
+                            "minimum": 0,
+                            "maximum": 20
+                          },
+                          "shareDecimals": {
+                            "type": "integer",
+                            "description": "a number between 0 and 20",
+                            "title": "between(0, 20)",
+                            "minimum": 0,
+                            "maximum": 20
+                          },
+                          "currency": {
+                            "$ref": "#/components/schemas/CurrencyCode"
+                          },
+                          "tokens": {
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "network",
+                                    "address"
+                                  ],
+                                  "properties": {
+                                    "network": {
+                                      "$ref": "#/components/schemas/EVMNetwork"
+                                    },
+                                    "address": {
+                                      "type": "string",
+                                      "title": "Ethereum address",
+                                      "description": "a valid Ethereum address, starting with 0x and followed by 40 hexadecimal characters e.g. \"0xb794f5ea0ba39494ce839613fffba74279579268\""
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "network",
+                                    "address"
+                                  ],
+                                  "properties": {
+                                    "network": {
+                                      "type": "string",
+                                      "enum": [
+                                        "Starknet",
+                                        "StarknetSepolia"
+                                      ]
+                                    },
+                                    "address": {
+                                      "title": "StarknetAddress",
+                                      "type": "string",
+                                      "description": "a valid Starknet address, starting with 0x and followed by 64 hexadecimal characters e.g. \"0x0000000000000000000000000000000000000000000000000000000000000000\""
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "network",
+                                    "address"
+                                  ],
+                                  "properties": {
+                                    "network": {
+                                      "type": "string",
+                                      "enum": [
+                                        "Stellar",
+                                        "StellarTestnet"
+                                      ]
+                                    },
+                                    "address": {
+                                      "anyOf": [
+                                        {
+                                          "title": "StellarAccountAddress",
+                                          "type": "string",
+                                          "description": "a valid Stellar account address, starting with G and followed by 55 hexadecimal characters e.g. \"GBYIQXBKEB655EB3WTRITS6RR5GXEP6SQRBLPREZHNFYKT7WBMTMPR3H\""
+                                        },
+                                        {
+                                          "title": "StellarContractAddress",
+                                          "type": "string",
+                                          "description": "a valid Stellar contract address, starting with C and followed by 55 hexadecimal characters e.g. \"CCAANR7HZNOXYZD7SXS2WQLV5BAOXSRZ7V4O43IANSB355QN2RNG7WVC\""
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "network",
+                                    "address"
+                                  ],
+                                  "properties": {
+                                    "network": {
+                                      "type": "string",
+                                      "enum": [
+                                        "Solana",
+                                        "SolanaDevnet"
+                                      ]
+                                    },
+                                    "address": {
+                                      "type": "string",
+                                      "title": "Solana address",
+                                      "description": "a valid Solana address, consisting of 32 to 44 base58 characters"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                }
+                              ]
+                            }
+                          },
+                          "useOfIncome": {
+                            "type": "string",
+                            "enum": [
+                              "accumulating",
+                              "distributing"
+                            ]
+                          },
+                          "minimumInitialSubscription": {
+                            "type": "string",
+                            "title": "non-negative decimal number as a string",
+                            "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                          },
+                          "minimumSubsequentSubscription": {
+                            "type": "string",
+                            "title": "non-negative decimal number as a string",
+                            "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                          },
+                          "minimumRedemption": {
+                            "type": "string",
+                            "title": "non-negative decimal number as a string",
+                            "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                          },
+                          "subscriptionFees": {
+                            "type": "string",
+                            "title": "non-negative decimal number as a string",
+                            "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                          },
+                          "redemptionFees": {
+                            "type": "string",
+                            "title": "non-negative decimal number as a string",
+                            "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                          },
+                          "managementFees": {
+                            "type": "string",
+                            "title": "non-negative decimal number as a string",
+                            "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                          },
+                          "intermediaryShareClasses": {
+                            "type": "array",
+                            "items": {
+                              "type": "array",
+                              "minItems": 2,
+                              "prefixItems": [
+                                {
+                                  "$ref": "#/components/schemas/CurrencyCode"
+                                },
+                                {
+                                  "type": "string",
+                                  "description": "a Universally Unique Identifier",
+                                  "format": "uuid"
+                                }
+                              ],
+                              "items": false
+                            }
+                          },
+                          "data": {
+                            "type": "object",
+                            "required": [
+                              "en",
+                              "es",
+                              "fr",
+                              "it",
+                              "de"
+                            ],
+                            "properties": {
+                              "en": {
+                                "type": "object",
+                                "required": [
+                                  "name",
+                                  "amfClassification",
+                                  "referenceIndex"
+                                ],
+                                "properties": {
+                                  "name": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  },
+                                  "amfClassification": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  },
+                                  "referenceIndex": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              "es": {
+                                "type": "object",
+                                "required": [
+                                  "name",
+                                  "amfClassification",
+                                  "referenceIndex"
+                                ],
+                                "properties": {
+                                  "name": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  },
+                                  "amfClassification": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  },
+                                  "referenceIndex": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              "fr": {
+                                "type": "object",
+                                "required": [
+                                  "name",
+                                  "amfClassification",
+                                  "referenceIndex"
+                                ],
+                                "properties": {
+                                  "name": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  },
+                                  "amfClassification": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  },
+                                  "referenceIndex": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              "it": {
+                                "type": "object",
+                                "required": [
+                                  "name",
+                                  "amfClassification",
+                                  "referenceIndex"
+                                ],
+                                "properties": {
+                                  "name": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  },
+                                  "amfClassification": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  },
+                                  "referenceIndex": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              "de": {
+                                "type": "object",
+                                "required": [
+                                  "name",
+                                  "amfClassification",
+                                  "referenceIndex"
+                                ],
+                                "properties": {
+                                  "name": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  },
+                                  "amfClassification": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  },
+                                  "referenceIndex": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  }
+                                },
+                                "additionalProperties": false
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "symbol": {
+                            "$ref": "#/components/schemas/ShareClassSymbol"
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "fundId",
+                          "isin",
+                          "navDecimals",
+                          "shareDecimals",
+                          "currency",
+                          "tokens",
+                          "useOfIncome",
+                          "minimumInitialSubscription",
+                          "minimumSubsequentSubscription",
+                          "minimumRedemption",
+                          "subscriptionFees",
+                          "redemptionFees",
+                          "managementFees",
+                          "intermediaryShareClasses",
+                          "data",
+                          "symbol",
+                          "bankAccountNumber",
+                          "bankAccountBic",
+                          "bankAccountIntermediaryBic"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "a Universally Unique Identifier",
+                            "format": "uuid"
+                          },
+                          "fundId": {
+                            "type": "string",
+                            "description": "a Universally Unique Identifier",
+                            "format": "uuid"
+                          },
+                          "isin": {
+                            "title": "Isin",
+                            "type": "string",
+                            "description": "A valid ISIN"
+                          },
+                          "navDecimals": {
+                            "type": "integer",
+                            "description": "a number between 0 and 20",
+                            "title": "between(0, 20)",
+                            "minimum": 0,
+                            "maximum": 20
+                          },
+                          "shareDecimals": {
+                            "type": "integer",
+                            "description": "a number between 0 and 20",
+                            "title": "between(0, 20)",
+                            "minimum": 0,
+                            "maximum": 20
+                          },
+                          "currency": {
+                            "$ref": "#/components/schemas/CurrencyCode"
+                          },
+                          "tokens": {
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "network",
+                                    "address"
+                                  ],
+                                  "properties": {
+                                    "network": {
+                                      "$ref": "#/components/schemas/EVMNetwork"
+                                    },
+                                    "address": {
+                                      "type": "string",
+                                      "title": "Ethereum address",
+                                      "description": "a valid Ethereum address, starting with 0x and followed by 40 hexadecimal characters e.g. \"0xb794f5ea0ba39494ce839613fffba74279579268\""
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "network",
+                                    "address"
+                                  ],
+                                  "properties": {
+                                    "network": {
+                                      "type": "string",
+                                      "enum": [
+                                        "Starknet",
+                                        "StarknetSepolia"
+                                      ]
+                                    },
+                                    "address": {
+                                      "title": "StarknetAddress",
+                                      "type": "string",
+                                      "description": "a valid Starknet address, starting with 0x and followed by 64 hexadecimal characters e.g. \"0x0000000000000000000000000000000000000000000000000000000000000000\""
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "network",
+                                    "address"
+                                  ],
+                                  "properties": {
+                                    "network": {
+                                      "type": "string",
+                                      "enum": [
+                                        "Stellar",
+                                        "StellarTestnet"
+                                      ]
+                                    },
+                                    "address": {
+                                      "anyOf": [
+                                        {
+                                          "title": "StellarAccountAddress",
+                                          "type": "string",
+                                          "description": "a valid Stellar account address, starting with G and followed by 55 hexadecimal characters e.g. \"GBYIQXBKEB655EB3WTRITS6RR5GXEP6SQRBLPREZHNFYKT7WBMTMPR3H\""
+                                        },
+                                        {
+                                          "title": "StellarContractAddress",
+                                          "type": "string",
+                                          "description": "a valid Stellar contract address, starting with C and followed by 55 hexadecimal characters e.g. \"CCAANR7HZNOXYZD7SXS2WQLV5BAOXSRZ7V4O43IANSB355QN2RNG7WVC\""
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "network",
+                                    "address"
+                                  ],
+                                  "properties": {
+                                    "network": {
+                                      "type": "string",
+                                      "enum": [
+                                        "Solana",
+                                        "SolanaDevnet"
+                                      ]
+                                    },
+                                    "address": {
+                                      "type": "string",
+                                      "title": "Solana address",
+                                      "description": "a valid Solana address, consisting of 32 to 44 base58 characters"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                }
+                              ]
+                            }
+                          },
+                          "useOfIncome": {
+                            "type": "string",
+                            "enum": [
+                              "accumulating",
+                              "distributing"
+                            ]
+                          },
+                          "minimumInitialSubscription": {
+                            "type": "string",
+                            "title": "non-negative decimal number as a string",
+                            "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                          },
+                          "minimumSubsequentSubscription": {
+                            "type": "string",
+                            "title": "non-negative decimal number as a string",
+                            "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                          },
+                          "minimumRedemption": {
+                            "type": "string",
+                            "title": "non-negative decimal number as a string",
+                            "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                          },
+                          "subscriptionFees": {
+                            "type": "string",
+                            "title": "non-negative decimal number as a string",
+                            "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                          },
+                          "redemptionFees": {
+                            "type": "string",
+                            "title": "non-negative decimal number as a string",
+                            "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                          },
+                          "managementFees": {
+                            "type": "string",
+                            "title": "non-negative decimal number as a string",
+                            "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                          },
+                          "intermediaryShareClasses": {
+                            "type": "array",
+                            "items": {
+                              "type": "array",
+                              "minItems": 2,
+                              "prefixItems": [
+                                {
+                                  "$ref": "#/components/schemas/CurrencyCode"
+                                },
+                                {
+                                  "type": "string",
+                                  "description": "a Universally Unique Identifier",
+                                  "format": "uuid"
+                                }
+                              ],
+                              "items": false
+                            }
+                          },
+                          "data": {
+                            "type": "object",
+                            "required": [
+                              "en",
+                              "es",
+                              "fr",
+                              "it",
+                              "de"
+                            ],
+                            "properties": {
+                              "en": {
+                                "type": "object",
+                                "required": [
+                                  "name",
+                                  "amfClassification",
+                                  "referenceIndex"
+                                ],
+                                "properties": {
+                                  "name": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  },
+                                  "amfClassification": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  },
+                                  "referenceIndex": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              "es": {
+                                "type": "object",
+                                "required": [
+                                  "name",
+                                  "amfClassification",
+                                  "referenceIndex"
+                                ],
+                                "properties": {
+                                  "name": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  },
+                                  "amfClassification": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  },
+                                  "referenceIndex": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              "fr": {
+                                "type": "object",
+                                "required": [
+                                  "name",
+                                  "amfClassification",
+                                  "referenceIndex"
+                                ],
+                                "properties": {
+                                  "name": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  },
+                                  "amfClassification": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  },
+                                  "referenceIndex": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              "it": {
+                                "type": "object",
+                                "required": [
+                                  "name",
+                                  "amfClassification",
+                                  "referenceIndex"
+                                ],
+                                "properties": {
+                                  "name": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  },
+                                  "amfClassification": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  },
+                                  "referenceIndex": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              "de": {
+                                "type": "object",
+                                "required": [
+                                  "name",
+                                  "amfClassification",
+                                  "referenceIndex"
+                                ],
+                                "properties": {
+                                  "name": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  },
+                                  "amfClassification": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  },
+                                  "referenceIndex": {
+                                    "$ref": "#/components/schemas/NonEmptyString"
+                                  }
+                                },
+                                "additionalProperties": false
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "symbol": {
+                            "$ref": "#/components/schemas/ShareClassSymbol"
+                          },
+                          "bankAccountNumber": {
+                            "title": "IBAN",
+                            "type": "string",
+                            "description": "a valid IBAN (International Bank Account Number)"
+                          },
+                          "bankAccountBic": {
+                            "title": "BIC",
+                            "type": "string",
+                            "description": "A valid BIC (Bank Identifier Code)"
+                          },
+                          "bankAccountIntermediaryBic": {
+                            "anyOf": [
+                              {
+                                "title": "BIC",
+                                "type": "string",
+                                "description": "A valid BIC (Bank Identifier Code)"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpApiDecodeError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/share-classes/{shareClassSymbol}": {
+      "get": {
+        "tags": [
+          "Share Classes"
+        ],
+        "operationId": "Get Share Class",
+        "parameters": [
+          {
+            "name": "shareClassSymbol",
+            "in": "path",
+            "schema": {
+              "$ref": "#/components/schemas/ShareClassSymbol"
+            },
+            "required": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "fundId",
+                        "isin",
+                        "navDecimals",
+                        "shareDecimals",
+                        "currency",
+                        "tokens",
+                        "useOfIncome",
+                        "minimumInitialSubscription",
+                        "minimumSubsequentSubscription",
+                        "minimumRedemption",
+                        "subscriptionFees",
+                        "redemptionFees",
+                        "managementFees",
+                        "intermediaryShareClasses",
+                        "data",
+                        "symbol"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "description": "a Universally Unique Identifier",
+                          "format": "uuid"
+                        },
+                        "fundId": {
+                          "type": "string",
+                          "description": "a Universally Unique Identifier",
+                          "format": "uuid"
+                        },
+                        "isin": {
+                          "title": "Isin",
+                          "type": "string",
+                          "description": "A valid ISIN"
+                        },
+                        "navDecimals": {
+                          "type": "integer",
+                          "description": "a number between 0 and 20",
+                          "title": "between(0, 20)",
+                          "minimum": 0,
+                          "maximum": 20
+                        },
+                        "shareDecimals": {
+                          "type": "integer",
+                          "description": "a number between 0 and 20",
+                          "title": "between(0, 20)",
+                          "minimum": 0,
+                          "maximum": 20
+                        },
+                        "currency": {
+                          "$ref": "#/components/schemas/CurrencyCode"
+                        },
+                        "tokens": {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "required": [
+                                  "network",
+                                  "address"
+                                ],
+                                "properties": {
+                                  "network": {
+                                    "$ref": "#/components/schemas/EVMNetwork"
+                                  },
+                                  "address": {
+                                    "type": "string",
+                                    "title": "Ethereum address",
+                                    "description": "a valid Ethereum address, starting with 0x and followed by 40 hexadecimal characters e.g. \"0xb794f5ea0ba39494ce839613fffba74279579268\""
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "network",
+                                  "address"
+                                ],
+                                "properties": {
+                                  "network": {
+                                    "type": "string",
+                                    "enum": [
+                                      "Starknet",
+                                      "StarknetSepolia"
+                                    ]
+                                  },
+                                  "address": {
+                                    "title": "StarknetAddress",
+                                    "type": "string",
+                                    "description": "a valid Starknet address, starting with 0x and followed by 64 hexadecimal characters e.g. \"0x0000000000000000000000000000000000000000000000000000000000000000\""
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "network",
+                                  "address"
+                                ],
+                                "properties": {
+                                  "network": {
+                                    "type": "string",
+                                    "enum": [
+                                      "Stellar",
+                                      "StellarTestnet"
+                                    ]
+                                  },
+                                  "address": {
+                                    "anyOf": [
+                                      {
+                                        "title": "StellarAccountAddress",
+                                        "type": "string",
+                                        "description": "a valid Stellar account address, starting with G and followed by 55 hexadecimal characters e.g. \"GBYIQXBKEB655EB3WTRITS6RR5GXEP6SQRBLPREZHNFYKT7WBMTMPR3H\""
+                                      },
+                                      {
+                                        "title": "StellarContractAddress",
+                                        "type": "string",
+                                        "description": "a valid Stellar contract address, starting with C and followed by 55 hexadecimal characters e.g. \"CCAANR7HZNOXYZD7SXS2WQLV5BAOXSRZ7V4O43IANSB355QN2RNG7WVC\""
+                                      }
+                                    ]
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "network",
+                                  "address"
+                                ],
+                                "properties": {
+                                  "network": {
+                                    "type": "string",
+                                    "enum": [
+                                      "Solana",
+                                      "SolanaDevnet"
+                                    ]
+                                  },
+                                  "address": {
+                                    "type": "string",
+                                    "title": "Solana address",
+                                    "description": "a valid Solana address, consisting of 32 to 44 base58 characters"
+                                  }
+                                },
+                                "additionalProperties": false
+                              }
+                            ]
+                          }
+                        },
+                        "useOfIncome": {
+                          "type": "string",
+                          "enum": [
+                            "accumulating",
+                            "distributing"
+                          ]
+                        },
+                        "minimumInitialSubscription": {
+                          "type": "string",
+                          "title": "non-negative decimal number as a string",
+                          "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                        },
+                        "minimumSubsequentSubscription": {
+                          "type": "string",
+                          "title": "non-negative decimal number as a string",
+                          "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                        },
+                        "minimumRedemption": {
+                          "type": "string",
+                          "title": "non-negative decimal number as a string",
+                          "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                        },
+                        "subscriptionFees": {
+                          "type": "string",
+                          "title": "non-negative decimal number as a string",
+                          "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                        },
+                        "redemptionFees": {
+                          "type": "string",
+                          "title": "non-negative decimal number as a string",
+                          "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                        },
+                        "managementFees": {
+                          "type": "string",
+                          "title": "non-negative decimal number as a string",
+                          "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                        },
+                        "intermediaryShareClasses": {
+                          "type": "array",
+                          "items": {
+                            "type": "array",
+                            "minItems": 2,
+                            "prefixItems": [
+                              {
+                                "$ref": "#/components/schemas/CurrencyCode"
+                              },
+                              {
+                                "type": "string",
+                                "description": "a Universally Unique Identifier",
+                                "format": "uuid"
+                              }
+                            ],
+                            "items": false
+                          }
+                        },
+                        "data": {
+                          "type": "object",
+                          "required": [
+                            "en",
+                            "es",
+                            "fr",
+                            "it",
+                            "de"
+                          ],
+                          "properties": {
+                            "en": {
+                              "type": "object",
+                              "required": [
+                                "name",
+                                "amfClassification",
+                                "referenceIndex"
+                              ],
+                              "properties": {
+                                "name": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                },
+                                "amfClassification": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                },
+                                "referenceIndex": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            "es": {
+                              "type": "object",
+                              "required": [
+                                "name",
+                                "amfClassification",
+                                "referenceIndex"
+                              ],
+                              "properties": {
+                                "name": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                },
+                                "amfClassification": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                },
+                                "referenceIndex": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            "fr": {
+                              "type": "object",
+                              "required": [
+                                "name",
+                                "amfClassification",
+                                "referenceIndex"
+                              ],
+                              "properties": {
+                                "name": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                },
+                                "amfClassification": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                },
+                                "referenceIndex": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            "it": {
+                              "type": "object",
+                              "required": [
+                                "name",
+                                "amfClassification",
+                                "referenceIndex"
+                              ],
+                              "properties": {
+                                "name": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                },
+                                "amfClassification": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                },
+                                "referenceIndex": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            "de": {
+                              "type": "object",
+                              "required": [
+                                "name",
+                                "amfClassification",
+                                "referenceIndex"
+                              ],
+                              "properties": {
+                                "name": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                },
+                                "amfClassification": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                },
+                                "referenceIndex": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                }
+                              },
+                              "additionalProperties": false
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "symbol": {
+                          "$ref": "#/components/schemas/ShareClassSymbol"
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "fundId",
+                        "isin",
+                        "navDecimals",
+                        "shareDecimals",
+                        "currency",
+                        "tokens",
+                        "useOfIncome",
+                        "minimumInitialSubscription",
+                        "minimumSubsequentSubscription",
+                        "minimumRedemption",
+                        "subscriptionFees",
+                        "redemptionFees",
+                        "managementFees",
+                        "intermediaryShareClasses",
+                        "data",
+                        "symbol",
+                        "bankAccountNumber",
+                        "bankAccountBic",
+                        "bankAccountIntermediaryBic"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "description": "a Universally Unique Identifier",
+                          "format": "uuid"
+                        },
+                        "fundId": {
+                          "type": "string",
+                          "description": "a Universally Unique Identifier",
+                          "format": "uuid"
+                        },
+                        "isin": {
+                          "title": "Isin",
+                          "type": "string",
+                          "description": "A valid ISIN"
+                        },
+                        "navDecimals": {
+                          "type": "integer",
+                          "description": "a number between 0 and 20",
+                          "title": "between(0, 20)",
+                          "minimum": 0,
+                          "maximum": 20
+                        },
+                        "shareDecimals": {
+                          "type": "integer",
+                          "description": "a number between 0 and 20",
+                          "title": "between(0, 20)",
+                          "minimum": 0,
+                          "maximum": 20
+                        },
+                        "currency": {
+                          "$ref": "#/components/schemas/CurrencyCode"
+                        },
+                        "tokens": {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "required": [
+                                  "network",
+                                  "address"
+                                ],
+                                "properties": {
+                                  "network": {
+                                    "$ref": "#/components/schemas/EVMNetwork"
+                                  },
+                                  "address": {
+                                    "type": "string",
+                                    "title": "Ethereum address",
+                                    "description": "a valid Ethereum address, starting with 0x and followed by 40 hexadecimal characters e.g. \"0xb794f5ea0ba39494ce839613fffba74279579268\""
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "network",
+                                  "address"
+                                ],
+                                "properties": {
+                                  "network": {
+                                    "type": "string",
+                                    "enum": [
+                                      "Starknet",
+                                      "StarknetSepolia"
+                                    ]
+                                  },
+                                  "address": {
+                                    "title": "StarknetAddress",
+                                    "type": "string",
+                                    "description": "a valid Starknet address, starting with 0x and followed by 64 hexadecimal characters e.g. \"0x0000000000000000000000000000000000000000000000000000000000000000\""
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "network",
+                                  "address"
+                                ],
+                                "properties": {
+                                  "network": {
+                                    "type": "string",
+                                    "enum": [
+                                      "Stellar",
+                                      "StellarTestnet"
+                                    ]
+                                  },
+                                  "address": {
+                                    "anyOf": [
+                                      {
+                                        "title": "StellarAccountAddress",
+                                        "type": "string",
+                                        "description": "a valid Stellar account address, starting with G and followed by 55 hexadecimal characters e.g. \"GBYIQXBKEB655EB3WTRITS6RR5GXEP6SQRBLPREZHNFYKT7WBMTMPR3H\""
+                                      },
+                                      {
+                                        "title": "StellarContractAddress",
+                                        "type": "string",
+                                        "description": "a valid Stellar contract address, starting with C and followed by 55 hexadecimal characters e.g. \"CCAANR7HZNOXYZD7SXS2WQLV5BAOXSRZ7V4O43IANSB355QN2RNG7WVC\""
+                                      }
+                                    ]
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "network",
+                                  "address"
+                                ],
+                                "properties": {
+                                  "network": {
+                                    "type": "string",
+                                    "enum": [
+                                      "Solana",
+                                      "SolanaDevnet"
+                                    ]
+                                  },
+                                  "address": {
+                                    "type": "string",
+                                    "title": "Solana address",
+                                    "description": "a valid Solana address, consisting of 32 to 44 base58 characters"
+                                  }
+                                },
+                                "additionalProperties": false
+                              }
+                            ]
+                          }
+                        },
+                        "useOfIncome": {
+                          "type": "string",
+                          "enum": [
+                            "accumulating",
+                            "distributing"
+                          ]
+                        },
+                        "minimumInitialSubscription": {
+                          "type": "string",
+                          "title": "non-negative decimal number as a string",
+                          "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                        },
+                        "minimumSubsequentSubscription": {
+                          "type": "string",
+                          "title": "non-negative decimal number as a string",
+                          "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                        },
+                        "minimumRedemption": {
+                          "type": "string",
+                          "title": "non-negative decimal number as a string",
+                          "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                        },
+                        "subscriptionFees": {
+                          "type": "string",
+                          "title": "non-negative decimal number as a string",
+                          "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                        },
+                        "redemptionFees": {
+                          "type": "string",
+                          "title": "non-negative decimal number as a string",
+                          "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                        },
+                        "managementFees": {
+                          "type": "string",
+                          "title": "non-negative decimal number as a string",
+                          "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+                        },
+                        "intermediaryShareClasses": {
+                          "type": "array",
+                          "items": {
+                            "type": "array",
+                            "minItems": 2,
+                            "prefixItems": [
+                              {
+                                "$ref": "#/components/schemas/CurrencyCode"
+                              },
+                              {
+                                "type": "string",
+                                "description": "a Universally Unique Identifier",
+                                "format": "uuid"
+                              }
+                            ],
+                            "items": false
+                          }
+                        },
+                        "data": {
+                          "type": "object",
+                          "required": [
+                            "en",
+                            "es",
+                            "fr",
+                            "it",
+                            "de"
+                          ],
+                          "properties": {
+                            "en": {
+                              "type": "object",
+                              "required": [
+                                "name",
+                                "amfClassification",
+                                "referenceIndex"
+                              ],
+                              "properties": {
+                                "name": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                },
+                                "amfClassification": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                },
+                                "referenceIndex": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            "es": {
+                              "type": "object",
+                              "required": [
+                                "name",
+                                "amfClassification",
+                                "referenceIndex"
+                              ],
+                              "properties": {
+                                "name": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                },
+                                "amfClassification": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                },
+                                "referenceIndex": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            "fr": {
+                              "type": "object",
+                              "required": [
+                                "name",
+                                "amfClassification",
+                                "referenceIndex"
+                              ],
+                              "properties": {
+                                "name": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                },
+                                "amfClassification": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                },
+                                "referenceIndex": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            "it": {
+                              "type": "object",
+                              "required": [
+                                "name",
+                                "amfClassification",
+                                "referenceIndex"
+                              ],
+                              "properties": {
+                                "name": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                },
+                                "amfClassification": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                },
+                                "referenceIndex": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            "de": {
+                              "type": "object",
+                              "required": [
+                                "name",
+                                "amfClassification",
+                                "referenceIndex"
+                              ],
+                              "properties": {
+                                "name": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                },
+                                "amfClassification": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                },
+                                "referenceIndex": {
+                                  "$ref": "#/components/schemas/NonEmptyString"
+                                }
+                              },
+                              "additionalProperties": false
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "symbol": {
+                          "$ref": "#/components/schemas/ShareClassSymbol"
+                        },
+                        "bankAccountNumber": {
+                          "title": "IBAN",
+                          "type": "string",
+                          "description": "a valid IBAN (International Bank Account Number)"
+                        },
+                        "bankAccountBic": {
+                          "title": "BIC",
+                          "type": "string",
+                          "description": "A valid BIC (Bank Identifier Code)"
+                        },
+                        "bankAccountIntermediaryBic": {
+                          "anyOf": [
+                            {
+                              "title": "BIC",
+                              "type": "string",
+                              "description": "A valid BIC (Bank Identifier Code)"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpApiDecodeError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFound"
+          }
+        }
+      }
+    },
+    "/share-classes/{shareClassSymbol}/yield": {
+      "get": {
+        "tags": [
+          "Share Classes"
+        ],
+        "operationId": "Get Share Class Yield",
+        "parameters": [
+          {
+            "name": "shareClassSymbol",
+            "in": "path",
+            "schema": {
+              "$ref": "#/components/schemas/ShareClassSymbol"
+            },
+            "required": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "shareClassId",
+                    "dailyYield",
+                    "weeklyYield",
+                    "monthlyYield",
+                    "updatedAt",
+                    "nextYieldTimestamp",
+                    "previousYieldTimestamp"
+                  ],
+                  "properties": {
+                    "shareClassId": {
+                      "type": "string",
+                      "description": "a Universally Unique Identifier",
+                      "format": "uuid"
+                    },
+                    "dailyYield": {
+                      "$ref": "#/components/schemas/BigDecimal"
+                    },
+                    "weeklyYield": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/BigDecimal"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "monthlyYield": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/BigDecimal"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "updatedAt": {
+                      "$ref": "#/components/schemas/Date"
+                    },
+                    "nextYieldTimestamp": {
+                      "type": "string",
+                      "title": "Timestamp",
+                      "description": "A timestamp in seconds since the Unix epoch (1970-01-01T00:00:00Z), e.g. \"1753347047\""
+                    },
+                    "previousYieldTimestamp": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "required": [
+                            "_tag"
+                          ],
+                          "properties": {
+                            "_tag": {
+                              "type": "string",
+                              "enum": [
+                                "None"
+                              ]
+                            }
+                          },
+                          "additionalProperties": false,
+                          "description": "NoneEncoded"
+                        },
+                        {
+                          "type": "object",
+                          "required": [
+                            "_tag",
+                            "value"
+                          ],
+                          "properties": {
+                            "_tag": {
+                              "type": "string",
+                              "enum": [
+                                "Some"
+                              ]
+                            },
+                            "value": {
+                              "type": "string",
+                              "title": "Timestamp",
+                              "description": "A timestamp in seconds since the Unix epoch (1970-01-01T00:00:00Z), e.g. \"1753347047\""
+                            }
+                          },
+                          "additionalProperties": false,
+                          "description": "SomeEncoded<nonNegativeBigInt & Brand<\"Timestamp\">>"
+                        }
+                      ],
+                      "description": "OptionEncoded<nonNegativeBigInt & Brand<\"Timestamp\">>"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpApiDecodeError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFound"
+          }
+        }
+      }
+    },
+    "/share-classes/{shareClassSymbol}/totals": {
+      "get": {
+        "tags": [
+          "Share Classes"
+        ],
+        "operationId": "Get Share Class Totals",
+        "parameters": [
+          {
+            "name": "shareClassSymbol",
+            "in": "path",
+            "schema": {
+              "$ref": "#/components/schemas/ShareClassSymbol"
+            },
+            "required": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "totalShares",
+                    "totalAssets",
+                    "numberOfHolders",
+                    "netAssetValue",
+                    "totalYield",
+                    "totalOrders"
+                  ],
+                  "properties": {
+                    "totalShares": {
+                      "$ref": "#/components/schemas/BigDecimal"
+                    },
+                    "totalAssets": {
+                      "$ref": "#/components/schemas/NonNegativeAmount"
+                    },
+                    "numberOfHolders": {
+                      "type": "number"
+                    },
+                    "netAssetValue": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "shareClassId",
+                        "day",
+                        "amount",
+                        "updatedAt"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "description": "a Universally Unique Identifier",
+                          "format": "uuid"
+                        },
+                        "shareClassId": {
+                          "type": "string",
+                          "description": "a Universally Unique Identifier",
+                          "format": "uuid"
+                        },
+                        "day": {
+                          "type": "string",
+                          "title": "Day",
+                          "description": "a day in ISO format \"YYYY-MM-DD\""
+                        },
+                        "amount": {
+                          "$ref": "#/components/schemas/NonNegativeAmount"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "title": "valid range date",
+                          "description": "A valid date within the range 2020-2100"
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "totalYield": {
+                      "$ref": "#/components/schemas/Amount"
+                    },
+                    "totalOrders": {
+                      "$ref": "#/components/schemas/Amount"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpApiDecodeError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFound"
+          }
+        }
+      }
+    },
+    "/share-classes/{shareClassSymbol}/totals/from-day": {
+      "get": {
+        "tags": [
+          "Share Classes"
+        ],
+        "operationId": "Get Share Class Totals From Day",
+        "parameters": [
+          {
+            "name": "shareClassSymbol",
+            "in": "path",
+            "schema": {
+              "$ref": "#/components/schemas/ShareClassSymbol"
+            },
+            "required": true
+          },
+          {
+            "name": "startDay",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "title": "Day",
+              "description": "a day formatted as \"yyyy-MM-dd\""
+            },
+            "required": true,
+            "description": "a day formatted as \"yyyy-MM-dd\""
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "totalShares",
+                      "totalAssets",
+                      "numberOfHolders",
+                      "netAssetValue",
+                      "totalYield",
+                      "totalOrders"
+                    ],
+                    "properties": {
+                      "totalShares": {
+                        "$ref": "#/components/schemas/BigDecimal"
+                      },
+                      "totalAssets": {
+                        "$ref": "#/components/schemas/NonNegativeAmount"
+                      },
+                      "numberOfHolders": {
+                        "type": "number"
+                      },
+                      "netAssetValue": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "shareClassId",
+                          "day",
+                          "amount",
+                          "updatedAt"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "a Universally Unique Identifier",
+                            "format": "uuid"
+                          },
+                          "shareClassId": {
+                            "type": "string",
+                            "description": "a Universally Unique Identifier",
+                            "format": "uuid"
+                          },
+                          "day": {
+                            "type": "string",
+                            "title": "Day",
+                            "description": "a day in ISO format \"YYYY-MM-DD\""
+                          },
+                          "amount": {
+                            "$ref": "#/components/schemas/NonNegativeAmount"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "title": "valid range date",
+                            "description": "A valid date within the range 2020-2100"
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      "totalYield": {
+                        "$ref": "#/components/schemas/Amount"
+                      },
+                      "totalOrders": {
+                        "$ref": "#/components/schemas/Amount"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpApiDecodeError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFound"
+          }
+        }
+      }
+    },
+    "/net-asset-values/{shareClassSymbol}/{day}": {
+      "get": {
+        "tags": [
+          "Net Asset Values"
+        ],
+        "operationId": "Get Net Asset Value",
+        "parameters": [
+          {
+            "name": "shareClassSymbol",
+            "in": "path",
+            "schema": {
+              "$ref": "#/components/schemas/ShareClassSymbol"
+            },
+            "required": true
+          },
+          {
+            "name": "day",
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "title": "Day",
+              "description": "a day formatted as \"yyyy-MM-dd\""
+            },
+            "required": true,
+            "description": "a day formatted as \"yyyy-MM-dd\""
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "shareClassId",
+                    "day",
+                    "amount",
+                    "updatedAt"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "a Universally Unique Identifier",
+                      "format": "uuid"
+                    },
+                    "shareClassId": {
+                      "type": "string",
+                      "description": "a Universally Unique Identifier",
+                      "format": "uuid"
+                    },
+                    "day": {
+                      "type": "string",
+                      "title": "Day",
+                      "description": "a day in ISO format \"YYYY-MM-DD\""
+                    },
+                    "amount": {
+                      "$ref": "#/components/schemas/NonNegativeAmount"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "title": "valid range date",
+                      "description": "A valid date within the range 2020-2100"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpApiDecodeError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFound"
+          }
+        }
+      }
+    },
+    "/net-asset-values/{shareClassSymbol}": {
+      "get": {
+        "tags": [
+          "Net Asset Values"
+        ],
+        "operationId": "Get Net Asset Values",
+        "parameters": [
+          {
+            "name": "shareClassSymbol",
+            "in": "path",
+            "schema": {
+              "$ref": "#/components/schemas/ShareClassSymbol"
+            },
+            "required": true
+          },
+          {
+            "name": "startDay",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "title": "Day",
+              "description": "a day formatted as \"yyyy-MM-dd\""
+            },
+            "required": true,
+            "description": "a day formatted as \"yyyy-MM-dd\""
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "shareClassId",
+                      "day",
+                      "amount",
+                      "updatedAt"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "a Universally Unique Identifier",
+                        "format": "uuid"
+                      },
+                      "shareClassId": {
+                        "type": "string",
+                        "description": "a Universally Unique Identifier",
+                        "format": "uuid"
+                      },
+                      "day": {
+                        "type": "string",
+                        "title": "Day",
+                        "description": "a day in ISO format \"YYYY-MM-DD\""
+                      },
+                      "amount": {
+                        "$ref": "#/components/schemas/NonNegativeAmount"
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                        "title": "valid range date",
+                        "description": "A valid date within the range 2020-2100"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpApiDecodeError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFound"
+          }
+        }
+      }
+    },
+    "/net-asset-values/{shareClassSymbol}/latest": {
+      "get": {
+        "tags": [
+          "Net Asset Values"
+        ],
+        "operationId": "Get Latest Net Asset Value",
+        "parameters": [
+          {
+            "name": "shareClassSymbol",
+            "in": "path",
+            "schema": {
+              "$ref": "#/components/schemas/ShareClassSymbol"
+            },
+            "required": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "shareClassId",
+                    "day",
+                    "amount",
+                    "updatedAt"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "a Universally Unique Identifier",
+                      "format": "uuid"
+                    },
+                    "shareClassId": {
+                      "type": "string",
+                      "description": "a Universally Unique Identifier",
+                      "format": "uuid"
+                    },
+                    "day": {
+                      "type": "string",
+                      "title": "Day",
+                      "description": "a day in ISO format \"YYYY-MM-DD\""
+                    },
+                    "amount": {
+                      "$ref": "#/components/schemas/NonNegativeAmount"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "title": "valid range date",
+                      "description": "A valid date within the range 2020-2100"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpApiDecodeError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFound"
+          }
+        }
+      }
+    },
+    "/index-values/{shareClassSymbol}": {
+      "get": {
+        "tags": [
+          "Index Values"
+        ],
+        "operationId": "Get Index Values",
+        "parameters": [
+          {
+            "name": "shareClassSymbol",
+            "in": "path",
+            "schema": {
+              "$ref": "#/components/schemas/ShareClassSymbol"
+            },
+            "required": true
+          },
+          {
+            "name": "startDay",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "title": "Day",
+              "description": "a day formatted as \"yyyy-MM-dd\""
+            },
+            "required": true,
+            "description": "a day formatted as \"yyyy-MM-dd\""
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "day",
+                      "amount"
+                    ],
+                    "properties": {
+                      "day": {
+                        "type": "string",
+                        "title": "Day",
+                        "description": "a day in ISO format \"YYYY-MM-DD\""
+                      },
+                      "amount": {
+                        "$ref": "#/components/schemas/NonNegativeAmount"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpApiDecodeError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFound"
+          },
+          "503": {
+            "description": "ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/index-values/spkcc/with-allocation": {
+      "get": {
+        "tags": [
+          "Index Values"
+        ],
+        "operationId": "Get SPKCC Chart Data",
+        "parameters": [
+          {
+            "name": "startDay",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "title": "Day",
+              "description": "a day formatted as \"yyyy-MM-dd\""
+            },
+            "required": true,
+            "description": "a day formatted as \"yyyy-MM-dd\""
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "day",
+                      "amount",
+                      "allocation"
+                    ],
+                    "properties": {
+                      "day": {
+                        "type": "string",
+                        "title": "Day",
+                        "description": "a day in ISO format \"YYYY-MM-DD\""
+                      },
+                      "amount": {
+                        "$ref": "#/components/schemas/NonNegativeAmount"
+                      },
+                      "allocation": {
+                        "type": "string",
+                        "enum": [
+                          "BTC",
+                          "ETH",
+                          "CASH"
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpApiDecodeError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFound"
+          },
+          "503": {
+            "description": "ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/fund-assets/": {
+      "get": {
+        "tags": [
+          "Fund Assets"
+        ],
+        "operationId": "Get all Fund Assets",
+        "parameters": [
+          {
+            "name": "fundId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "description": "a Universally Unique Identifier",
+              "format": "uuid"
+            },
+            "required": true,
+            "description": "a Universally Unique Identifier"
+          },
+          {
+            "name": "valuationDay",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "title": "Day",
+              "description": "a day formatted as \"yyyy-MM-dd\""
+            },
+            "required": false,
+            "description": "a day formatted as \"yyyy-MM-dd\""
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "fundId",
+                          "valuationDay",
+                          "assetLabel",
+                          "currency",
+                          "quantity",
+                          "totalMarketValue",
+                          "unitMarketValue",
+                          "totalAcquisitionCost",
+                          "unitAcquisitionCost",
+                          "totalGainOnAsset",
+                          "unitGainOnAsset",
+                          "percentageOfFundTotalNetAssets",
+                          "fundTotalNetAssetsMarketValue",
+                          "createdAt",
+                          "assetType",
+                          "isin",
+                          "issuerCountryCode",
+                          "nominalValue",
+                          "maturity",
+                          "maturityDate",
+                          "daysToMaturity",
+                          "yieldToMaturity"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "a Universally Unique Identifier",
+                            "format": "uuid"
+                          },
+                          "fundId": {
+                            "type": "string",
+                            "description": "a Universally Unique Identifier",
+                            "format": "uuid"
+                          },
+                          "valuationDay": {
+                            "$ref": "#/components/schemas/Date"
+                          },
+                          "assetLabel": {
+                            "type": "object",
+                            "required": [
+                              "en",
+                              "es",
+                              "fr",
+                              "it",
+                              "de"
+                            ],
+                            "properties": {
+                              "en": {
+                                "type": "string"
+                              },
+                              "es": {
+                                "type": "string"
+                              },
+                              "fr": {
+                                "type": "string"
+                              },
+                              "it": {
+                                "type": "string"
+                              },
+                              "de": {
+                                "type": "string"
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "currency": {
+                            "$ref": "#/components/schemas/CurrencyCode"
+                          },
+                          "quantity": {
+                            "$ref": "#/components/schemas/BigDecimal"
+                          },
+                          "totalMarketValue": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "unitMarketValue": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "totalAcquisitionCost": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "unitAcquisitionCost": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "totalGainOnAsset": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "unitGainOnAsset": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "percentageOfFundTotalNetAssets": {
+                            "$ref": "#/components/schemas/BigDecimal"
+                          },
+                          "fundTotalNetAssetsMarketValue": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "title": "valid range date",
+                            "description": "A valid date within the range 2020-2100"
+                          },
+                          "assetType": {
+                            "type": "string",
+                            "enum": [
+                              "bond"
+                            ]
+                          },
+                          "isin": {
+                            "title": "Isin",
+                            "type": "string",
+                            "description": "A valid ISIN"
+                          },
+                          "issuerCountryCode": {
+                            "identifier": "CountryCodeAlpha3",
+                            "title": "Country code alpha-3",
+                            "type": "string",
+                            "description": "alpha-3 country code (ISO 3166-1)",
+                            "documentation": "ISO 3166-1 alpha-3 country code, 'FRA' for France, 'BEL' for Belgium, 'DEU' for Germany etc."
+                          },
+                          "nominalValue": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "maturity": {
+                            "type": "string",
+                            "enum": [
+                              "short",
+                              "long"
+                            ]
+                          },
+                          "maturityDate": {
+                            "$ref": "#/components/schemas/Date"
+                          },
+                          "daysToMaturity": {
+                            "type": "number"
+                          },
+                          "yieldToMaturity": {
+                            "$ref": "#/components/schemas/BigDecimal"
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "fundId",
+                          "valuationDay",
+                          "assetLabel",
+                          "currency",
+                          "quantity",
+                          "totalMarketValue",
+                          "unitMarketValue",
+                          "totalAcquisitionCost",
+                          "unitAcquisitionCost",
+                          "totalGainOnAsset",
+                          "unitGainOnAsset",
+                          "percentageOfFundTotalNetAssets",
+                          "fundTotalNetAssetsMarketValue",
+                          "createdAt",
+                          "assetType",
+                          "isin",
+                          "issuerCountryCode",
+                          "securityName"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "a Universally Unique Identifier",
+                            "format": "uuid"
+                          },
+                          "fundId": {
+                            "type": "string",
+                            "description": "a Universally Unique Identifier",
+                            "format": "uuid"
+                          },
+                          "valuationDay": {
+                            "$ref": "#/components/schemas/Date"
+                          },
+                          "assetLabel": {
+                            "type": "object",
+                            "required": [
+                              "en",
+                              "es",
+                              "fr",
+                              "it",
+                              "de"
+                            ],
+                            "properties": {
+                              "en": {
+                                "type": "string"
+                              },
+                              "es": {
+                                "type": "string"
+                              },
+                              "fr": {
+                                "type": "string"
+                              },
+                              "it": {
+                                "type": "string"
+                              },
+                              "de": {
+                                "type": "string"
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "currency": {
+                            "$ref": "#/components/schemas/CurrencyCode"
+                          },
+                          "quantity": {
+                            "$ref": "#/components/schemas/BigDecimal"
+                          },
+                          "totalMarketValue": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "unitMarketValue": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "totalAcquisitionCost": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "unitAcquisitionCost": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "totalGainOnAsset": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "unitGainOnAsset": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "percentageOfFundTotalNetAssets": {
+                            "$ref": "#/components/schemas/BigDecimal"
+                          },
+                          "fundTotalNetAssetsMarketValue": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "title": "valid range date",
+                            "description": "A valid date within the range 2020-2100"
+                          },
+                          "assetType": {
+                            "type": "string",
+                            "enum": [
+                              "equity"
+                            ]
+                          },
+                          "isin": {
+                            "title": "Isin",
+                            "type": "string",
+                            "description": "A valid ISIN"
+                          },
+                          "issuerCountryCode": {
+                            "identifier": "CountryCodeAlpha3",
+                            "title": "Country code alpha-3",
+                            "type": "string",
+                            "description": "alpha-3 country code (ISO 3166-1)",
+                            "documentation": "ISO 3166-1 alpha-3 country code, 'FRA' for France, 'BEL' for Belgium, 'DEU' for Germany etc."
+                          },
+                          "securityName": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "fundId",
+                          "valuationDay",
+                          "assetLabel",
+                          "currency",
+                          "quantity",
+                          "totalMarketValue",
+                          "unitMarketValue",
+                          "totalAcquisitionCost",
+                          "unitAcquisitionCost",
+                          "totalGainOnAsset",
+                          "unitGainOnAsset",
+                          "percentageOfFundTotalNetAssets",
+                          "fundTotalNetAssetsMarketValue",
+                          "createdAt",
+                          "assetType",
+                          "code"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "a Universally Unique Identifier",
+                            "format": "uuid"
+                          },
+                          "fundId": {
+                            "type": "string",
+                            "description": "a Universally Unique Identifier",
+                            "format": "uuid"
+                          },
+                          "valuationDay": {
+                            "$ref": "#/components/schemas/Date"
+                          },
+                          "assetLabel": {
+                            "type": "object",
+                            "required": [
+                              "en",
+                              "es",
+                              "fr",
+                              "it",
+                              "de"
+                            ],
+                            "properties": {
+                              "en": {
+                                "type": "string"
+                              },
+                              "es": {
+                                "type": "string"
+                              },
+                              "fr": {
+                                "type": "string"
+                              },
+                              "it": {
+                                "type": "string"
+                              },
+                              "de": {
+                                "type": "string"
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "currency": {
+                            "$ref": "#/components/schemas/CurrencyCode"
+                          },
+                          "quantity": {
+                            "$ref": "#/components/schemas/BigDecimal"
+                          },
+                          "totalMarketValue": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "unitMarketValue": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "totalAcquisitionCost": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "unitAcquisitionCost": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "totalGainOnAsset": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "unitGainOnAsset": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "percentageOfFundTotalNetAssets": {
+                            "$ref": "#/components/schemas/BigDecimal"
+                          },
+                          "fundTotalNetAssetsMarketValue": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "title": "valid range date",
+                            "description": "A valid date within the range 2020-2100"
+                          },
+                          "assetType": {
+                            "type": "string",
+                            "enum": [
+                              "cash"
+                            ]
+                          },
+                          "code": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "fundId",
+                          "valuationDay",
+                          "assetLabel",
+                          "currency",
+                          "quantity",
+                          "totalMarketValue",
+                          "unitMarketValue",
+                          "totalAcquisitionCost",
+                          "unitAcquisitionCost",
+                          "totalGainOnAsset",
+                          "unitGainOnAsset",
+                          "percentageOfFundTotalNetAssets",
+                          "fundTotalNetAssetsMarketValue",
+                          "createdAt",
+                          "assetType",
+                          "code"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "a Universally Unique Identifier",
+                            "format": "uuid"
+                          },
+                          "fundId": {
+                            "type": "string",
+                            "description": "a Universally Unique Identifier",
+                            "format": "uuid"
+                          },
+                          "valuationDay": {
+                            "$ref": "#/components/schemas/Date"
+                          },
+                          "assetLabel": {
+                            "type": "object",
+                            "required": [
+                              "en",
+                              "es",
+                              "fr",
+                              "it",
+                              "de"
+                            ],
+                            "properties": {
+                              "en": {
+                                "type": "string"
+                              },
+                              "es": {
+                                "type": "string"
+                              },
+                              "fr": {
+                                "type": "string"
+                              },
+                              "it": {
+                                "type": "string"
+                              },
+                              "de": {
+                                "type": "string"
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "currency": {
+                            "$ref": "#/components/schemas/CurrencyCode"
+                          },
+                          "quantity": {
+                            "$ref": "#/components/schemas/BigDecimal"
+                          },
+                          "totalMarketValue": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "unitMarketValue": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "totalAcquisitionCost": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "unitAcquisitionCost": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "totalGainOnAsset": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "unitGainOnAsset": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "percentageOfFundTotalNetAssets": {
+                            "$ref": "#/components/schemas/BigDecimal"
+                          },
+                          "fundTotalNetAssetsMarketValue": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "title": "valid range date",
+                            "description": "A valid date within the range 2020-2100"
+                          },
+                          "assetType": {
+                            "type": "string",
+                            "enum": [
+                              "reverse_repo"
+                            ]
+                          },
+                          "code": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "fundId",
+                          "valuationDay",
+                          "assetLabel",
+                          "currency",
+                          "quantity",
+                          "totalMarketValue",
+                          "unitMarketValue",
+                          "totalAcquisitionCost",
+                          "unitAcquisitionCost",
+                          "totalGainOnAsset",
+                          "unitGainOnAsset",
+                          "percentageOfFundTotalNetAssets",
+                          "fundTotalNetAssetsMarketValue",
+                          "createdAt",
+                          "assetType",
+                          "code"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "a Universally Unique Identifier",
+                            "format": "uuid"
+                          },
+                          "fundId": {
+                            "type": "string",
+                            "description": "a Universally Unique Identifier",
+                            "format": "uuid"
+                          },
+                          "valuationDay": {
+                            "$ref": "#/components/schemas/Date"
+                          },
+                          "assetLabel": {
+                            "type": "object",
+                            "required": [
+                              "en",
+                              "es",
+                              "fr",
+                              "it",
+                              "de"
+                            ],
+                            "properties": {
+                              "en": {
+                                "type": "string"
+                              },
+                              "es": {
+                                "type": "string"
+                              },
+                              "fr": {
+                                "type": "string"
+                              },
+                              "it": {
+                                "type": "string"
+                              },
+                              "de": {
+                                "type": "string"
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "currency": {
+                            "$ref": "#/components/schemas/CurrencyCode"
+                          },
+                          "quantity": {
+                            "$ref": "#/components/schemas/BigDecimal"
+                          },
+                          "totalMarketValue": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "unitMarketValue": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "totalAcquisitionCost": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "unitAcquisitionCost": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "totalGainOnAsset": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "unitGainOnAsset": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "percentageOfFundTotalNetAssets": {
+                            "$ref": "#/components/schemas/BigDecimal"
+                          },
+                          "fundTotalNetAssetsMarketValue": {
+                            "$ref": "#/components/schemas/Amount"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "title": "valid range date",
+                            "description": "A valid date within the range 2020-2100"
+                          },
+                          "assetType": {
+                            "type": "string",
+                            "enum": [
+                              "swap"
+                            ]
+                          },
+                          "code": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpApiDecodeError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFound"
+          }
+        }
+      }
+    },
+    "/exchange-rates/{exchangeRateId}": {
+      "get": {
+        "tags": [
+          "Exchange Rates"
+        ],
+        "operationId": "Get Exchange Rate by ID",
+        "parameters": [
+          {
+            "name": "exchangeRateId",
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "description": "a Universally Unique Identifier",
+              "format": "uuid"
+            },
+            "required": true,
+            "description": "a Universally Unique Identifier"
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "fundId",
+                    "day",
+                    "baseCurrency",
+                    "quoteCurrency",
+                    "fxRate",
+                    "updatedAt"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "a Universally Unique Identifier",
+                      "format": "uuid"
+                    },
+                    "fundId": {
+                      "type": "string",
+                      "description": "a Universally Unique Identifier",
+                      "format": "uuid"
+                    },
+                    "day": {
+                      "type": "string",
+                      "title": "Day",
+                      "description": "a day in ISO format \"YYYY-MM-DD\""
+                    },
+                    "baseCurrency": {
+                      "$ref": "#/components/schemas/CurrencyCode"
+                    },
+                    "quoteCurrency": {
+                      "$ref": "#/components/schemas/CurrencyCode"
+                    },
+                    "fxRate": {
+                      "$ref": "#/components/schemas/BigDecimal"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "indicative",
+                        "execution"
+                      ]
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "title": "valid range date",
+                      "description": "A valid date within the range 2020-2100"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpApiDecodeError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFound"
+          }
+        }
+      }
+    },
+    "/exchange-rates/latest": {
+      "get": {
+        "tags": [
+          "Exchange Rates"
+        ],
+        "operationId": "Get Latest Exchange Rate",
+        "parameters": [
+          {
+            "name": "fundId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "description": "a Universally Unique Identifier",
+              "format": "uuid"
+            },
+            "required": true,
+            "description": "a Universally Unique Identifier"
+          },
+          {
+            "name": "quoteCurrency",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/CurrencyCode"
+            },
+            "required": true
+          },
+          {
+            "name": "baseCurrency",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/CurrencyCode"
+            },
+            "required": true
+          },
+          {
+            "name": "latestUpdateDate",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Date"
+            },
+            "required": false
+          },
+          {
+            "name": "fallbackToAnyOtherFund",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/BooleanFromString"
+            },
+            "required": false
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "fundId",
+                    "day",
+                    "baseCurrency",
+                    "quoteCurrency",
+                    "fxRate",
+                    "updatedAt"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "a Universally Unique Identifier",
+                      "format": "uuid"
+                    },
+                    "fundId": {
+                      "type": "string",
+                      "description": "a Universally Unique Identifier",
+                      "format": "uuid"
+                    },
+                    "day": {
+                      "type": "string",
+                      "title": "Day",
+                      "description": "a day in ISO format \"YYYY-MM-DD\""
+                    },
+                    "baseCurrency": {
+                      "$ref": "#/components/schemas/CurrencyCode"
+                    },
+                    "quoteCurrency": {
+                      "$ref": "#/components/schemas/CurrencyCode"
+                    },
+                    "fxRate": {
+                      "$ref": "#/components/schemas/BigDecimal"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "indicative",
+                        "execution"
+                      ]
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "title": "valid range date",
+                      "description": "A valid date within the range 2020-2100"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpApiDecodeError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFound"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "FundSlug": {
+        "type": "string",
+        "enum": [
+          "EUTBL",
+          "USTBL",
+          "SPKCC",
+          "UKTBL",
+          "SAFO"
+        ]
+      },
+      "HttpApiDecodeError": {
+        "type": "object",
+        "required": [
+          "issues",
+          "message",
+          "_tag"
+        ],
+        "properties": {
+          "issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Issue"
+            }
+          },
+          "message": {
+            "type": "string"
+          },
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "HttpApiDecodeError"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "description": "The request did not match the expected schema"
+      },
+      "Issue": {
+        "type": "object",
+        "required": [
+          "_tag",
+          "path",
+          "message"
+        ],
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "Pointer",
+              "Unexpected",
+              "Missing",
+              "Composite",
+              "Refinement",
+              "Transformation",
+              "Type",
+              "Forbidden"
+            ],
+            "description": "The tag identifying the type of parse issue"
+          },
+          "path": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PropertyKey"
+            },
+            "description": "The path to the property where the issue occurred"
+          },
+          "message": {
+            "type": "string",
+            "description": "A descriptive message explaining the issue"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Represents an error encountered while parsing a value to match the schema"
+      },
+      "PropertyKey": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "object",
+            "required": [
+              "_tag",
+              "key"
+            ],
+            "properties": {
+              "_tag": {
+                "type": "string",
+                "enum": [
+                  "symbol"
+                ]
+              },
+              "key": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "description": "an object to be decoded into a globally shared symbol"
+          }
+        ]
+      },
+      "CurrencyCode": {
+        "type": "string",
+        "enum": [
+          "EUR",
+          "USD",
+          "GBP",
+          "CHF",
+          "JPY",
+          "SGD"
+        ],
+        "description": "a currency code among \"EUR\", \"USD\", \"GBP\", \"CHF\", \"JPY\", \"SGD\"",
+        "title": "Currency code"
+      },
+      "EVMNetwork": {
+        "type": "string",
+        "enum": [
+          "Sepolia",
+          "PolygonAmoy",
+          "BaseSepolia",
+          "ArbitrumSepolia",
+          "EtherlinkTestnet",
+          "Ethereum",
+          "Polygon",
+          "Base",
+          "Arbitrum",
+          "Etherlink"
+        ],
+        "description": "an EVM blockchain network e.g. \"Ethereum\", \"Polygon\", \"Arbitrum\"",
+        "title": "EVM Network"
+      },
+      "NonEmptyString": {
+        "type": "string",
+        "description": "a non empty string",
+        "title": "nonEmptyString",
+        "minLength": 1
+      },
+      "ShareClassSymbol": {
+        "type": "string",
+        "enum": [
+          "EUTBL",
+          "USTBL",
+          "eurUSTBL",
+          "SPKCC",
+          "eurSPKCC",
+          "UKTBL",
+          "eurUKTBL",
+          "SAFO",
+          "SAFOd",
+          "eurSAFO",
+          "eurSAFOd",
+          "gbpSAFO",
+          "chfSAFO"
+        ],
+        "title": "ShareClassSymbol"
+      },
+      "BigDecimal": {
+        "type": "string",
+        "description": "a string to be decoded into a BigDecimal"
+      },
+      "Date": {
+        "type": "string",
+        "description": "a string to be decoded into a Date"
+      },
+      "NonNegativeAmount": {
+        "type": "object",
+        "required": [
+          "value",
+          "currency"
+        ],
+        "properties": {
+          "value": {
+            "type": "string",
+            "title": "non-negative decimal number as a string",
+            "description": "a string representation of a non-negative decimal number e.g. \"10000\", \"0.00\" or \"3420.92\""
+          },
+          "currency": {
+            "$ref": "#/components/schemas/CurrencyCode"
+          }
+        },
+        "additionalProperties": false,
+        "title": "Non-Negative Amount"
+      },
+      "Amount": {
+        "type": "object",
+        "required": [
+          "value",
+          "currency"
+        ],
+        "properties": {
+          "value": {
+            "type": "string",
+            "title": "decimal number as a string",
+            "description": "a string representation of a decimal number e.g. \"10000\", \"0.00\" or \"-7432092.04\""
+          },
+          "currency": {
+            "$ref": "#/components/schemas/CurrencyCode"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BooleanFromString": {
+        "type": "string",
+        "enum": [
+          "true",
+          "false"
+        ],
+        "description": "a string to be decoded into a boolean"
+      }
+    },
+    "securitySchemes": {}
+  },
+  "security": [],
+  "tags": [
+    {
+      "name": "Funds"
+    },
+    {
+      "name": "Share Classes"
+    },
+    {
+      "name": "Net Asset Values"
+    },
+    {
+      "name": "Index Values"
+    },
+    {
+      "name": "Fund Assets"
+    },
+    {
+      "name": "Exchange Rates"
+    }
+  ],
+  "servers": [
+    {
+      "url": "https://public-api.spiko.io/v0",
+      "description": "Production Server"
+    }
+  ]
+}

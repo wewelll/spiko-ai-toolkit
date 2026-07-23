@@ -1,0 +1,32 @@
+{
+  "name": "@spiko/cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Effect-native CLI for Spiko's APIs.",
+  "bin": {
+    "spiko": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "rolldown -c",
+    "dev": "node --experimental-strip-types src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@effect/platform-node": "catalog:",
+    "@spiko/distributor-api-client": "workspace:*",
+    "@spiko/investor-api-client": "workspace:*",
+    "@spiko/public-api-client": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "rolldown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

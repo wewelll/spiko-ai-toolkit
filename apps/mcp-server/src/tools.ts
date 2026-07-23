@@ -1,6 +1,6 @@
-import { Schema } from "effect"
+import { PublicApi, type PublicApiClient } from "@spiko/public-api-client"
+import { Effect, Schema } from "effect"
 import { Tool, Toolkit } from "effect/unstable/ai"
-import { SpikoApi, SpikoApiError, get } from "./spiko-api.ts"
 
 const Day = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/)).annotate({
   description: "A calendar day in YYYY-MM-DD format",
@@ -33,15 +33,19 @@ const Success = Schema.Struct({
   source: Schema.String,
 })
 
+export class SpikoMcpError extends Schema.TaggedErrorClass<SpikoMcpError>()("SpikoMcpError", {
+  message: Schema.String,
+}) {}
+
 const makeTool = <const Name extends string, Parameters extends Schema.Top>(
   name: Name,
   description: string,
   parameters: Parameters,
 ) =>
   Tool.make(name, {
-    dependencies: [SpikoApi],
+    dependencies: [PublicApi],
     description,
-    failure: SpikoApiError,
+    failure: SpikoMcpError,
     failureMode: "return",
     parameters,
     success: Success,
@@ -170,30 +174,99 @@ export const SpikoToolkit = Toolkit.make(
 
 const segment = encodeURIComponent
 
+type QueryValue = boolean | number | string | undefined
+
+const sourceUrl = (
+  baseUrl: string,
+  path: string,
+  query: Readonly<Record<string, QueryValue>> = {},
+): string => {
+  const url = new URL(path.replace(/^\/+/, ""), `${baseUrl.replace(/\/+$/, "")}/`)
+
+  for (const [name, value] of Object.entries(query)) {
+    if (value !== undefined) {
+      url.searchParams.set(name, String(value))
+    }
+  }
+
+  return url.toString()
+}
+
+const call = <A, E>(
+  path: string,
+  query: Readonly<Record<string, QueryValue>>,
+  operation: (api: PublicApiClient) => Effect.Effect<A, E>,
+): Effect.Effect<{ readonly data: A; readonly source: string }, SpikoMcpError, PublicApi> =>
+  Effect.flatMap(PublicApi, (api) =>
+    operation(api).pipe(
+      Effect.map((data) => ({
+        data,
+        source: sourceUrl(api.baseUrl, path, query),
+      })),
+    ),
+  ).pipe(
+    Effect.mapError(
+      (cause) =>
+        new SpikoMcpError({
+          message: String(cause),
+        }),
+    ),
+  )
+
 export const SpikoHandlers = SpikoToolkit.toLayer({
-  list_funds: () => get("funds/"),
-  get_fund: ({ fundId }) => get(`funds/${segment(fundId)}`),
-  list_share_classes: () => get("share-classes/"),
-  get_share_class: ({ shareClassSymbol }) => get(`share-classes/${segment(shareClassSymbol)}`),
+  list_funds: () => call("funds/", {}, (api) => api.GetAllFunds(undefined)),
+  get_fund: ({ fundId }) =>
+    call(`funds/${segment(fundId)}`, {}, (api) => api.GetFund(fundId, undefined)),
+  list_share_classes: () => call("share-classes/", {}, (api) => api.GetAllShareClasses(undefined)),
+  get_share_class: ({ shareClassSymbol }) =>
+    call(`share-classes/${segment(shareClassSymbol)}`, {}, (api) =>
+      api.GetShareClass(shareClassSymbol, undefined),
+    ),
   get_share_class_yield: ({ shareClassSymbol }) =>
-    get(`share-classes/${segment(shareClassSymbol)}/yield`),
+    call(`share-classes/${segment(shareClassSymbol)}/yield`, {}, (api) =>
+      api.GetShareClassYield(shareClassSymbol, undefined),
+    ),
   get_share_class_totals: ({ shareClassSymbol }) =>
-    get(`share-classes/${segment(shareClassSymbol)}/totals`),
+    call(`share-classes/${segment(shareClassSymbol)}/totals`, {}, (api) =>
+      api.GetShareClassTotals(shareClassSymbol, undefined),
+    ),
   get_share_class_totals_from_day: ({ shareClassSymbol, startDay }) =>
-    get(`share-classes/${segment(shareClassSymbol)}/totals/from-day`, {
-      startDay,
-    }),
+    call(`share-classes/${segment(shareClassSymbol)}/totals/from-day`, { startDay }, (api) =>
+      api.GetShareClassTotalsFromDay(shareClassSymbol, { params: { startDay } }),
+    ),
   get_net_asset_value: ({ shareClassSymbol, day }) =>
-    get(`net-asset-values/${segment(shareClassSymbol)}/${segment(day)}`),
+    call(`net-asset-values/${segment(shareClassSymbol)}/${segment(day)}`, {}, (api) =>
+      api.GetNetAssetValue(shareClassSymbol, day, undefined),
+    ),
   get_net_asset_values: ({ shareClassSymbol, startDay }) =>
-    get(`net-asset-values/${segment(shareClassSymbol)}`, { startDay }),
+    call(`net-asset-values/${segment(shareClassSymbol)}`, { startDay }, (api) =>
+      api.GetNetAssetValues(shareClassSymbol, { params: { startDay } }),
+    ),
   get_latest_net_asset_value: ({ shareClassSymbol }) =>
-    get(`net-asset-values/${segment(shareClassSymbol)}/latest`),
+    call(`net-asset-values/${segment(shareClassSymbol)}/latest`, {}, (api) =>
+      api.GetLatestNetAssetValue(shareClassSymbol, undefined),
+    ),
   get_index_values: ({ shareClassSymbol, startDay }) =>
-    get(`index-values/${segment(shareClassSymbol)}`, { startDay }),
-  get_spkcc_chart_data: ({ startDay }) => get("index-values/spkcc/with-allocation", { startDay }),
-  get_fund_assets: ({ fundId, valuationDay }) => get("fund-assets/", { fundId, valuationDay }),
-  get_exchange_rate: ({ exchangeRateId }) => get(`exchange-rates/${segment(exchangeRateId)}`),
+    call(`index-values/${segment(shareClassSymbol)}`, { startDay }, (api) =>
+      api.GetIndexValues(shareClassSymbol, { params: { startDay } }),
+    ),
+  get_spkcc_chart_data: ({ startDay }) =>
+    call("index-values/spkcc/with-allocation", { startDay }, (api) =>
+      api.GetSPKCCChartData({ params: { startDay } }),
+    ),
+  get_fund_assets: ({ fundId, valuationDay }) =>
+    call("fund-assets/", { fundId, valuationDay }, (api) =>
+      api.GetAllFundAssets({
+        params: {
+          fundId,
+          ...(valuationDay === undefined ? {} : { valuationDay }),
+        },
+      }),
+    ),
+  get_exchange_rate: ({ exchangeRateId }) =>
+    call(`exchange-rates/${segment(exchangeRateId)}`, {}, (api) =>
+      api.GetExchangeRateByID(exchangeRateId, undefined),
+    ),
   get_latest_exchange_rate: ({
     baseCurrency,
     fallbackToAnyOtherFund,
@@ -201,11 +274,26 @@ export const SpikoHandlers = SpikoToolkit.toLayer({
     latestUpdateDate,
     quoteCurrency,
   }) =>
-    get("exchange-rates/latest", {
-      baseCurrency,
-      fallbackToAnyOtherFund,
-      fundId,
-      latestUpdateDate,
-      quoteCurrency,
-    }),
+    call(
+      "exchange-rates/latest",
+      {
+        baseCurrency,
+        fallbackToAnyOtherFund,
+        fundId,
+        latestUpdateDate,
+        quoteCurrency,
+      },
+      (api) =>
+        api.GetLatestExchangeRate({
+          params: {
+            baseCurrency,
+            fundId,
+            quoteCurrency,
+            ...(fallbackToAnyOtherFund === undefined
+              ? {}
+              : { fallbackToAnyOtherFund: fallbackToAnyOtherFund ? "true" : "false" }),
+            ...(latestUpdateDate === undefined ? {} : { latestUpdateDate }),
+          },
+        }),
+    ),
 })

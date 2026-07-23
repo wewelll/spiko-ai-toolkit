@@ -13,8 +13,8 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2024",
-    "types": ["node", "vitest/globals"],
+    "types": ["node"],
     "verbatimModuleSyntax": true
   },
-  "include": ["src", "test", "rolldown.config.ts", "vitest.config.ts"]
+  "include": ["tools"]
 }

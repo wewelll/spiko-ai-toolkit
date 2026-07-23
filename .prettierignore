@@ -1,0 +1,3 @@
+apps/cli/src/generated/
+openapi/
+packages/*/src/generated.ts
