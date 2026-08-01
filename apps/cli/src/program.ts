@@ -6,6 +6,7 @@ import { Argument, CliError, Command, Flag } from "effect/unstable/cli"
 import type { ApiName, OperationMetadata, OperationParameter } from "./generated/operations.ts"
 import { ApiNames, OperationCatalog } from "./generated/operations.ts"
 import { CliInputError, prepareInvocation } from "./core.ts"
+import { routeOperations } from "./routes.ts"
 
 const getClient = (api: ApiName) => {
   switch (api) {
@@ -44,11 +45,8 @@ const invokeClient = Effect.fn("Cli.invokeClient")(function* (
   return yield* result
 })
 
-const parameterFlagName = (parameter: OperationParameter): string =>
-  `${parameter.in}-${parameter.name}`
-
 const makeParameterFlag = (parameter: OperationParameter): Flag.Flag<Option.Option<string>> => {
-  const flag = Flag.string(parameterFlagName(parameter)).pipe(
+  const flag = Flag.string(parameter.name).pipe(
     Flag.withDescription(
       `${parameter.required ? "Required" : "Optional"} ${parameter.in} parameter: ${parameter.name}`,
     ),
@@ -61,7 +59,7 @@ const collectParameters = (
   input: Readonly<Record<string, Option.Option<string>>>,
 ) =>
   metadata.parameters.flatMap((parameter) =>
-    Option.match(Option.flatten(Record.get(input, parameterFlagName(parameter))), {
+    Option.match(Option.flatten(Record.get(input, parameter.name)), {
       onNone: () => [],
       onSome: (value) => [{ parameter, value }],
     }),
@@ -110,9 +108,14 @@ const payload = Flag.fileSchema("payload", Schema.Json, { format: "json" }).pipe
   Flag.withDescription("Path to a JSON request body file"),
 )
 
-const makeOperationCommand = (api: ApiName, operationName: string, metadata: OperationMetadata) => {
+const makeOperationCommand = (
+  api: ApiName,
+  commandName: string,
+  operationName: string,
+  metadata: OperationMetadata,
+) => {
   const parameters = Record.fromIterableWith(metadata.parameters, (parameter) => [
-    parameterFlagName(parameter),
+    parameter.name,
     makeParameterFlag(parameter),
   ])
   const description = `${metadata.method} ${metadata.path} — ${metadata.description}`
@@ -120,7 +123,7 @@ const makeOperationCommand = (api: ApiName, operationName: string, metadata: Ope
 
   if (mutating && metadata.requestBody !== undefined) {
     return Command.make(
-      operationName,
+      commandName,
       { confirm, parameters, payload },
       ({ confirm, parameters, payload }) =>
         handleCliErrors(
@@ -129,42 +132,71 @@ const makeOperationCommand = (api: ApiName, operationName: string, metadata: Ope
     ).pipe(Command.withDescription(description))
   }
   if (mutating) {
-    return Command.make(operationName, { confirm, parameters }, ({ confirm, parameters }) =>
+    return Command.make(commandName, { confirm, parameters }, ({ confirm, parameters }) =>
       handleCliErrors(
         callOperation(api, operationName, metadata, confirm, parameters, Option.none()),
       ),
     ).pipe(Command.withDescription(description))
   }
   if (metadata.requestBody !== undefined) {
-    return Command.make(operationName, { parameters, payload }, ({ parameters, payload }) =>
+    return Command.make(commandName, { parameters, payload }, ({ parameters, payload }) =>
       handleCliErrors(
         callOperation(api, operationName, metadata, false, parameters, Option.some(payload)),
       ),
     ).pipe(Command.withDescription(description))
   }
-  return Command.make(operationName, { parameters }, ({ parameters }) =>
+  return Command.make(commandName, { parameters }, ({ parameters }) =>
     handleCliErrors(callOperation(api, operationName, metadata, false, parameters, Option.none())),
   ).pipe(Command.withDescription(description))
 }
 
-const makeApiCommand = (api: ApiName) =>
-  Command.make(api).pipe(
+const makeResourceCommand = (
+  api: ApiName,
+  resource: string,
+  routes: ReturnType<typeof routeOperations>,
+) => {
+  const actions = routes.map((route) =>
+    makeOperationCommand(api, route.action, route.operationName, route.metadata),
+  )
+  const defaultRoute = routes.find((route) => route.isDefault)
+  const description = `Call ${api} API operations for ${resource}`
+
+  return defaultRoute === undefined
+    ? Command.make(resource).pipe(
+        Command.withSubcommands(actions),
+        Command.withDescription(description),
+      )
+    : makeOperationCommand(api, resource, defaultRoute.operationName, defaultRoute.metadata).pipe(
+        Command.withSubcommands(actions),
+        Command.withDescription(description),
+      )
+}
+
+const makeApiCommand = (api: ApiName) => {
+  const routes = routeOperations(OperationCatalog[api])
+  const resources = Map.groupBy(routes, (route) => route.resource)
+
+  return Command.make(api).pipe(
     Command.withSubcommands(
-      Object.entries(OperationCatalog[api]).map(([operationName, metadata]) =>
-        makeOperationCommand(api, operationName, metadata),
+      Array.from(resources, ([resource, resourceRoutes]) =>
+        makeResourceCommand(api, resource, resourceRoutes),
       ),
     ),
     Command.withDescription(`Call a generated ${api} API operation`),
   )
+}
 
 const api = Argument.choice("api", ApiNames).pipe(Argument.withDescription("The Spiko API to use"))
 
 const operationsCommand = Command.make("operations", { api }, ({ api }) => {
-  const operations = Object.entries(OperationCatalog[api]).map(([name, metadata]) => ({
-    description: metadata.description,
-    method: metadata.method,
-    name,
-    path: metadata.path,
+  const operations = routeOperations(OperationCatalog[api]).map((route) => ({
+    action: route.action,
+    command: `spiko call ${api} ${route.resource}${route.isDefault ? "" : ` ${route.action}`}`,
+    description: route.metadata.description,
+    method: route.metadata.method,
+    name: route.operationName,
+    path: route.metadata.path,
+    resource: route.resource,
   }))
   return Console.log(JSON.stringify(operations, null, 2))
 }).pipe(Command.withDescription("List generated operations for a Spiko API"))

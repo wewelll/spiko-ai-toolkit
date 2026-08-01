@@ -77,19 +77,19 @@ node apps/cli/dist/index.js operations investor
 node apps/cli/dist/index.js operations distributor
 ```
 
-Each generated operation is an Effect CLI subcommand with its own required and optional flags. Inspect them with `spiko call <api> <operation> --help`:
+Operations are grouped into resource-oriented Effect CLI subcommands. Inspect them with `spiko call <api> <resource> [action] --help`:
 
 ```sh
-node apps/cli/dist/index.js call public GetFund \
-  --path-fundId 00000000-0000-0000-0000-000000000000
+node apps/cli/dist/index.js call public funds get \
+  --fundId 00000000-0000-0000-0000-000000000000
 
-node apps/cli/dist/index.js call public GetLatestExchangeRate \
-  --query-fundId ... \
-  --query-baseCurrency EUR \
-  --query-quoteCurrency USD
+node apps/cli/dist/index.js call public exchange-rates \
+  --fundId ... \
+  --baseCurrency EUR \
+  --quoteCurrency USD
 ```
 
-For operations with a request body, `--payload request.json` is a required Effect CLI flag decoded with `Schema.Json`; operations without a body do not accept it. Every non-GET/HEAD call requires `--confirm`. Header parameters declared by Spiko are exposed as `--header-<name>` flags.
+The resource command defaults to its list operation, its latest operation, or its only operation. For operations with a request body, `--payload request.json` is a required Effect CLI flag decoded with `Schema.Json`; operations without a body do not accept it. Every non-GET/HEAD call requires `--confirm`. OpenAPI path, query, cookie, and header parameters use their original names as flags.
 
 ## MCP server
 

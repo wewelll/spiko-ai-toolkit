@@ -11,6 +11,7 @@ const readOperation: OperationMetadata = {
     { in: "query", name: "day", required: true },
   ],
   path: "/funds/{fundId}",
+  resource: "funds",
 }
 
 const writeOperation: OperationMetadata = {
@@ -19,6 +20,7 @@ const writeOperation: OperationMetadata = {
   parameters: [],
   path: "/orders",
   requestBody: { required: true },
+  resource: "orders",
 }
 
 describe("prepareInvocation", () => {

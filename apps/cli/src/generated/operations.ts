@@ -15,6 +15,7 @@ export interface OperationMetadata {
   readonly method: string
   readonly parameters: ReadonlyArray<OperationParameter>
   readonly path: string
+  readonly resource: string
   readonly requestBody?: {
     readonly required: boolean
   }
@@ -32,19 +33,22 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/funds/{fundId}"
+      "path": "/funds/{fundId}",
+      "resource": "funds"
     },
     "GetAllFunds": {
       "description": "Get all Funds",
       "method": "GET",
       "parameters": [],
-      "path": "/funds/"
+      "path": "/funds/",
+      "resource": "funds"
     },
     "GetAllShareClasses": {
       "description": "Get all Share Classes",
       "method": "GET",
       "parameters": [],
-      "path": "/share-classes/"
+      "path": "/share-classes/",
+      "resource": "share-classes"
     },
     "GetShareClass": {
       "description": "Get Share Class",
@@ -56,7 +60,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/share-classes/{shareClassSymbol}"
+      "path": "/share-classes/{shareClassSymbol}",
+      "resource": "share-classes"
     },
     "GetShareClassYield": {
       "description": "Get Share Class Yield",
@@ -68,7 +73,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/share-classes/{shareClassSymbol}/yield"
+      "path": "/share-classes/{shareClassSymbol}/yield",
+      "resource": "share-classes"
     },
     "GetShareClassTotals": {
       "description": "Get Share Class Totals",
@@ -80,7 +86,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/share-classes/{shareClassSymbol}/totals"
+      "path": "/share-classes/{shareClassSymbol}/totals",
+      "resource": "share-classes"
     },
     "GetShareClassTotalsFromDay": {
       "description": "Get Share Class Totals From Day",
@@ -97,7 +104,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/share-classes/{shareClassSymbol}/totals/from-day"
+      "path": "/share-classes/{shareClassSymbol}/totals/from-day",
+      "resource": "share-classes"
     },
     "GetNetAssetValue": {
       "description": "Get Net Asset Value",
@@ -114,7 +122,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/net-asset-values/{shareClassSymbol}/{day}"
+      "path": "/net-asset-values/{shareClassSymbol}/{day}",
+      "resource": "net-asset-values"
     },
     "GetNetAssetValues": {
       "description": "Get Net Asset Values",
@@ -131,7 +140,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/net-asset-values/{shareClassSymbol}"
+      "path": "/net-asset-values/{shareClassSymbol}",
+      "resource": "net-asset-values"
     },
     "GetLatestNetAssetValue": {
       "description": "Get Latest Net Asset Value",
@@ -143,7 +153,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/net-asset-values/{shareClassSymbol}/latest"
+      "path": "/net-asset-values/{shareClassSymbol}/latest",
+      "resource": "net-asset-values"
     },
     "GetIndexValues": {
       "description": "Get Index Values",
@@ -160,7 +171,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/index-values/{shareClassSymbol}"
+      "path": "/index-values/{shareClassSymbol}",
+      "resource": "index-values"
     },
     "GetSPKCCChartData": {
       "description": "Get SPKCC Chart Data",
@@ -172,7 +184,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/index-values/spkcc/with-allocation"
+      "path": "/index-values/spkcc/with-allocation",
+      "resource": "index-values"
     },
     "GetAllFundAssets": {
       "description": "Get all Fund Assets",
@@ -189,7 +202,8 @@ export const OperationCatalog = {
           "required": false
         }
       ],
-      "path": "/fund-assets/"
+      "path": "/fund-assets/",
+      "resource": "fund-assets"
     },
     "GetExchangeRateByID": {
       "description": "Get Exchange Rate by ID",
@@ -201,7 +215,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/exchange-rates/{exchangeRateId}"
+      "path": "/exchange-rates/{exchangeRateId}",
+      "resource": "exchange-rates"
     },
     "GetLatestExchangeRate": {
       "description": "Get Latest Exchange Rate",
@@ -233,7 +248,8 @@ export const OperationCatalog = {
           "required": false
         }
       ],
-      "path": "/exchange-rates/latest"
+      "path": "/exchange-rates/latest",
+      "resource": "exchange-rates"
     }
   },
   "investor": {
@@ -241,13 +257,15 @@ export const OperationCatalog = {
       "description": "Get info about the authenticated investor",
       "method": "GET",
       "parameters": [],
-      "path": "/investors/me"
+      "path": "/investors/me",
+      "resource": "investors"
     },
     "investorsGetInvestors": {
       "description": "Get info about all available investors",
       "method": "GET",
       "parameters": [],
-      "path": "/investors/"
+      "path": "/investors/",
+      "resource": "investors"
     },
     "accountsGetAccounts": {
       "description": "Get list of an investor's accounts",
@@ -259,7 +277,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/accounts/"
+      "path": "/accounts/",
+      "resource": "accounts"
     },
     "accountsCreateAccount": {
       "description": "Create a new internal account for an investor",
@@ -268,7 +287,8 @@ export const OperationCatalog = {
       "path": "/accounts/",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "accounts"
     },
     "accountsGetAccount": {
       "description": "Get a specific account",
@@ -280,7 +300,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/accounts/{accountId}"
+      "path": "/accounts/{accountId}",
+      "resource": "accounts"
     },
     "accountsGetDepositInstructions": {
       "description": "\n**Retrieve virtual IBAN deposit instructions for a given account, share class, and subscription currency.**\n\nReturns a list of virtual bank accounts, each with its supported payment rails. An empty list means no virtual bank account has been provisioned (feature not available).\n\nEach entry includes payment informations and supported rails:\n- `SCT` / `SCT Instant` - SEPA Credit Transfer (EUR)\n- `Faster Payments` / `CHAPS` / `BACS` - UK local transfers (GBP); the `accountDetails` field then contains `sortCode` and `accountNumber`\n- `SWIFT` - international wire\n          ",
@@ -302,7 +323,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/accounts/{accountId}/deposit-instructions"
+      "path": "/accounts/{accountId}/deposit-instructions",
+      "resource": "accounts"
     },
     "depositOrdersGetDepositOrders": {
       "description": "\nGet all deposit orders for a given investor with optional status filter.\n\n> ⚠️ **For displaying an account's activity, prefer the [account transaction history endpoint](#tag/Account-Transactions/operation/accountTransactions.getAccountTransactions).** It returns deposits, withdrawals, transfers and yield accruals as a single time-ordered stream, with cursor pagination, so you don't need to call multiple per-order-type endpoints and reconcile their results.\n",
@@ -319,7 +341,8 @@ export const OperationCatalog = {
           "required": false
         }
       ],
-      "path": "/deposit-orders/"
+      "path": "/deposit-orders/",
+      "resource": "deposit-orders"
     },
     "depositOrdersCreateDepositOrder": {
       "description": "\nCreate a deposit order and return wire instructions for funding via bank transfer.\n\n**When to use this endpoint**\n\nThis endpoint is **required** only for share classes **without** a per-investor virtual IBAN (vIBAN), such as **USTBL (USD)**. The response includes `wireInstructions.reference`, which must be included in the wire transfer so incoming funds can be matched.\n\nFor share classes that support **cash collection** (direct wire to a virtual IBAN), **do not call this endpoint**. Wire funds directly to your virtual IBAN instead — incoming transfers are reconciled automatically. Attempting to create a deposit order for such a share class returns **HTTP 400** (`DepositNotAllowedError`).\n",
@@ -328,7 +351,8 @@ export const OperationCatalog = {
       "path": "/deposit-orders/",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "deposit-orders"
     },
     "depositOrdersCancelDepositOrder": {
       "description": "Cancel a pending deposit order. Only orders in pending status can be canceled. If funds have already been received, cancelling the deposit order will fail.",
@@ -340,7 +364,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/deposit-orders/{depositOrderId}/cancel"
+      "path": "/deposit-orders/{depositOrderId}/cancel",
+      "resource": "deposit-orders"
     },
     "depositOrdersGetDepositOrder": {
       "description": "Get info of a specific deposit order by its ID",
@@ -352,7 +377,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/deposit-orders/{depositOrderId}"
+      "path": "/deposit-orders/{depositOrderId}",
+      "resource": "deposit-orders"
     },
     "depositOrdersCreateDepositOrderByDirectDebit": {
       "description": "Create a new SEPA Direct Debit collection for an account. Only allowed for EUTBL and eurSAFO share classes, for professional investors for whom the feature has been enabled and who have signed a mandate on app.spiko.io.",
@@ -361,7 +387,8 @@ export const OperationCatalog = {
       "path": "/deposit-orders/direct-debit/",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "deposit-orders"
     },
     "subscriptionOrdersGetSubscriptionOrders": {
       "description": "\n**Deprecated - use deposit endpoints instead.** Get all subscription orders for a given investor with optional status filter.\n\n> ⚠️ **For displaying an account's activity, prefer the [account transaction history endpoint](#tag/Account-Transactions/operation/accountTransactions.getAccountTransactions).** It returns deposits, withdrawals, transfers and yield accruals as a single time-ordered stream, with cursor pagination, so you don't need to call multiple per-order-type endpoints and reconcile their results.\n",
@@ -378,7 +405,8 @@ export const OperationCatalog = {
           "required": false
         }
       ],
-      "path": "/subscription-orders/"
+      "path": "/subscription-orders/",
+      "resource": "subscription-orders"
     },
     "subscriptionOrdersCreateSubscriptionOrder": {
       "description": "**Deprecated - use deposit endpoints instead.** Create a new subscription order and return the order info. This subscription shall be paid via bank transfer.",
@@ -387,7 +415,8 @@ export const OperationCatalog = {
       "path": "/subscription-orders/",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "subscription-orders"
     },
     "subscriptionOrdersCreateSubscriptionOrderByDirectDebit": {
       "description": "**Deprecated - use deposit endpoints instead.** Create a new SEPA Direct Debit collection for an account. Only allowed for EUTBL and eurSAFO share classes, for professional investors for whom the feature has been enabled and who have signed a mandate on app.spiko.io.",
@@ -396,7 +425,8 @@ export const OperationCatalog = {
       "path": "/subscription-orders/direct-debit/",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "subscription-orders"
     },
     "subscriptionOrdersGetSubscriptionOrder": {
       "description": "**Deprecated - use deposit endpoints instead.** Get info of a specific subscription order by its ID",
@@ -408,7 +438,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/subscription-orders/{subscriptionOrderId}"
+      "path": "/subscription-orders/{subscriptionOrderId}",
+      "resource": "subscription-orders"
     },
     "withdrawalOrdersGetWithdrawalOrders": {
       "description": "\nGet all withdrawal orders for a given investor with optional status filter.\n\n> ⚠️ **For displaying an account's activity, prefer the [account transaction history endpoint](#tag/Account-Transactions/operation/accountTransactions.getAccountTransactions).** It returns deposits, withdrawals, transfers and yield accruals as a single time-ordered stream, with cursor pagination, so you don't need to call multiple per-order-type endpoints and reconcile their results.\n",
@@ -425,7 +456,8 @@ export const OperationCatalog = {
           "required": false
         }
       ],
-      "path": "/withdrawal-orders/"
+      "path": "/withdrawal-orders/",
+      "resource": "withdrawal-orders"
     },
     "withdrawalOrdersCreateWithdrawalOrder": {
       "description": "\nCreate a new withdrawal order for an investor and return the order info.\n\n- The `quantity` field supports three modes:\n  - `{\"mode\":\"amount\",\"amount\":{\"value\":\"1000\",\"currency\":\"EUR\"}}` - withdraw a specific fiat amount\n  - `{\"mode\":\"shares\",\"shares\":\"10.5\"}` - withdraw a specific number of shares\n  - `{\"mode\":\"total\"}` - withdraw all shares (full withdrawal)\n",
@@ -434,7 +466,8 @@ export const OperationCatalog = {
       "path": "/withdrawal-orders/",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "withdrawal-orders"
     },
     "withdrawalOrdersCancelWithdrawalOrder": {
       "description": "Cancel a pending withdrawal order. Only orders in pending status can be canceled.",
@@ -446,7 +479,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/withdrawal-orders/{withdrawalOrderId}/cancel"
+      "path": "/withdrawal-orders/{withdrawalOrderId}/cancel",
+      "resource": "withdrawal-orders"
     },
     "withdrawalOrdersGetWithdrawalOrder": {
       "description": "Get info of a specific withdrawal order by its ID",
@@ -458,7 +492,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/withdrawal-orders/{withdrawalOrderId}"
+      "path": "/withdrawal-orders/{withdrawalOrderId}",
+      "resource": "withdrawal-orders"
     },
     "redemptionOrdersGetRedemptionOrders": {
       "description": "\n**Deprecated - use withdrawal endpoints instead.** Get all redemption orders for a given investor with optional status filter.\n\n> ⚠️ **For displaying an account's activity, prefer the [account transaction history endpoint](#tag/Account-Transactions/operation/accountTransactions.getAccountTransactions).** It returns deposits, withdrawals, transfers and yield accruals as a single time-ordered stream, with cursor pagination, so you don't need to call multiple per-order-type endpoints and reconcile their results.\n",
@@ -475,7 +510,8 @@ export const OperationCatalog = {
           "required": false
         }
       ],
-      "path": "/redemption-orders/"
+      "path": "/redemption-orders/",
+      "resource": "redemption-orders"
     },
     "redemptionOrdersCreateRedemptionOrder": {
       "description": "**Deprecated - use withdrawal endpoints instead.** Create a new redemption order for an investor and return the order info.",
@@ -484,7 +520,8 @@ export const OperationCatalog = {
       "path": "/redemption-orders/",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "redemption-orders"
     },
     "redemptionOrdersCreateInstantRedemptionOrder": {
       "description": "**Deprecated - use withdrawal endpoints instead.** Create an instant redemption order for an investor. Only available for organization investors who have accepted terms of use.",
@@ -493,7 +530,8 @@ export const OperationCatalog = {
       "path": "/redemption-orders/instant",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "redemption-orders"
     },
     "redemptionOrdersGetRedemptionOrder": {
       "description": "**Deprecated - use withdrawal endpoints instead.** Get info of a specific redemption order by its ID",
@@ -505,7 +543,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/redemption-orders/{redemptionOrderId}"
+      "path": "/redemption-orders/{redemptionOrderId}",
+      "resource": "redemption-orders"
     },
     "transferOrdersGetTransferOrders": {
       "description": "\nGet all transfer orders for a given investor with optional status filter.\n\n> ⚠️ **For displaying an account's activity, prefer the [account transaction history endpoint](#tag/Account-Transactions/operation/accountTransactions.getAccountTransactions).** It returns deposits, withdrawals, transfers and yield accruals as a single time-ordered stream, with cursor pagination, so you don't need to call multiple per-order-type endpoints and reconcile their results.\n",
@@ -522,7 +561,8 @@ export const OperationCatalog = {
           "required": false
         }
       ],
-      "path": "/transfer-orders/"
+      "path": "/transfer-orders/",
+      "resource": "transfer-orders"
     },
     "transferOrdersCreateTransferOrder": {
       "description": "Create a transfer order between two accounts owned by the investor",
@@ -531,7 +571,8 @@ export const OperationCatalog = {
       "path": "/transfer-orders/",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "transfer-orders"
     },
     "transferOrdersGetTransferOrder": {
       "description": "Get info of a specific transfer order by its ID",
@@ -543,7 +584,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/transfer-orders/{transferOrderId}"
+      "path": "/transfer-orders/{transferOrderId}",
+      "resource": "transfer-orders"
     },
     "accountTransactionsGetAccountTransactions": {
       "description": "Get paginated account transactions including orders and yield accruals. Sorted anti-chronologically (newest first) by default. Use direction=asc for chronological order (oldest first). Supports filtering by transaction type.",
@@ -580,7 +622,8 @@ export const OperationCatalog = {
           "required": false
         }
       ],
-      "path": "/account-transactions/"
+      "path": "/account-transactions/",
+      "resource": "account-transactions"
     },
     "portfolioGetPortfolio": {
       "description": "Get all portfolio information for a given investor",
@@ -592,7 +635,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/portfolio/"
+      "path": "/portfolio/",
+      "resource": "portfolio"
     },
     "portfolioGetPortfolioTotals": {
       "description": "Get the aggregated balance per account across all share classes. The `totalBalance` is the settled on-chain balance, converted to a single currency (defaults to EUR, unless all active positions share a single other currency). `pending.credit` and `pending.debit` expose amounts that are in transition (e.g. a fund-to-fund swap or a subscription/redemption still settling on-chain), so money moving between funds stays visible during the 1-2 day settlement window instead of vanishing. `projectedBalance` anticipates settlement as `totalBalance + pending.credit - pending.debit` (matching the balance shown in the Spiko web app). The `breakdown` gives the settled native balance per currency before conversion.",
@@ -609,7 +653,8 @@ export const OperationCatalog = {
           "required": false
         }
       ],
-      "path": "/portfolio/totals"
+      "path": "/portfolio/totals",
+      "resource": "portfolio"
     },
     "bankAccountsGetBankAccountById": {
       "description": "Get info of a bank account (currency / IBAN / BIC)",
@@ -626,7 +671,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/bank-accounts/{bankAccountId}"
+      "path": "/bank-accounts/{bankAccountId}",
+      "resource": "bank-accounts"
     },
     "bankAccountsGetBankAccounts": {
       "description": "Get list of bank account's info of an investor (IBAN / BIC)",
@@ -638,7 +684,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/bank-accounts/"
+      "path": "/bank-accounts/",
+      "resource": "bank-accounts"
     },
     "accountingPositionsGetInvestorAccountingPositionsHistory": {
       "description": "Get all accounting positions (midnight to midnight UTC) for a given investor and share class between two dates",
@@ -665,7 +712,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/accounting-positions/history"
+      "path": "/accounting-positions/history",
+      "resource": "accounting-positions"
     },
     "accountingPositionsGetAccountingPositionsHistory": {
       "description": "Get all accounting positions (midnight to midnight UTC) for a given account and share class between two dates",
@@ -692,7 +740,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/accounting-positions/account-history"
+      "path": "/accounting-positions/account-history",
+      "resource": "accounting-positions"
     },
     "accountingPositionsDownloadAccountStatement": {
       "description": "\n  **Download an account statement related to a share class between two dates.**\n\n  - The account statement will be a pdf file.\n  - If no accountId is provided, the account statement will be for the sum of all archived and active accounts of the investor.\n            ",
@@ -734,7 +783,8 @@ export const OperationCatalog = {
           "required": false
         }
       ],
-      "path": "/accounting-positions/account-statement"
+      "path": "/accounting-positions/account-statement",
+      "resource": "accounting-positions"
     },
     "yieldsGetYieldHistory": {
       "description": "Get all daily yields for a given account and share class between two dates",
@@ -761,7 +811,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/yields/history"
+      "path": "/yields/history",
+      "resource": "yields"
     }
   },
   "distributor": {
@@ -772,7 +823,8 @@ export const OperationCatalog = {
       "path": "/v1/investors",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "investors"
     },
     "investorsGetAllInvestors": {
       "description": "\n**Retrieve a paginated list of investors linked to the distributor.**\n\n- Investors are sorted by creation date (newest first).\n- Pagination parameters (`page` & `limit`) are optional and default to `page = 1` and `limit = 50`.\n- Use `textSearch` to filter investors by ID, name (first/last/legal), or email.\n          ",
@@ -794,7 +846,8 @@ export const OperationCatalog = {
           "required": false
         }
       ],
-      "path": "/v0/investors"
+      "path": "/v0/investors",
+      "resource": "investors"
     },
     "investorsCreateInvestor": {
       "description": "\n**Deprecated - use `POST /v1/investors` instead.**\n\nRegister a new investor with the platform. Returns the complete investor profile including generated UUID identifier.\n            ",
@@ -803,7 +856,8 @@ export const OperationCatalog = {
       "path": "/v0/investors",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "investors"
     },
     "investorsGetInvestor": {
       "description": "\n**Retrieve detailed information about an investor linked to the distributor.**\n\n- Returns the complete investor profile including company or personal details and compliance status.\n          ",
@@ -815,7 +869,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/investors/{id}"
+      "path": "/v0/investors/{id}",
+      "resource": "investors"
     },
     "investorsUpdateInvestor": {
       "description": "\n**Modify an existing investor by updating the specified attributes.**\n\n- Return the complete investor profile.\n            ",
@@ -830,7 +885,8 @@ export const OperationCatalog = {
       "path": "/v0/investors/{id}",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "investors"
     },
     "accountsGetAccounts": {
       "description": "Retrieve all accounts associated with a specific investor. Returns a list of accounts that can be used for deposits and withdrawals.",
@@ -842,7 +898,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/accounts"
+      "path": "/v0/accounts",
+      "resource": "accounts"
     },
     "accountsCreateAccount": {
       "description": "Create an account for an investor",
@@ -851,7 +908,8 @@ export const OperationCatalog = {
       "path": "/v0/accounts",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "accounts"
     },
     "accountsAddAccountLine": {
       "description": "Add a new line to an internal account for a given share class. This enables the investor to hold and subscribe to that share class within the account. Returns 409 if the account already has a line for the specified share class.",
@@ -866,7 +924,8 @@ export const OperationCatalog = {
       "path": "/v0/accounts/{accountId}/lines",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "accounts"
     },
     "accountsGetAccount": {
       "description": "Retrieve account information (including the investor who owns it) by providing the account ID.",
@@ -878,7 +937,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/accounts/{accountId}"
+      "path": "/v0/accounts/{accountId}",
+      "resource": "accounts"
     },
     "accountsGetDepositInstructions": {
       "description": "\n**Retrieve virtual IBAN deposit instructions for a given account, share class, and subscription currency.**\n\nReturns a list of virtual bank accounts, each with its supported payment rails. An empty list means no virtual bank account has been provisioned (feature not available).\n\nEach entry includes payment informations and supported rails:\n- `SCT` / `SCT Instant` - SEPA Credit Transfer (EUR)\n- `Faster Payments` / `CHAPS` / `BACS` - UK local transfers (GBP); also includes `gbpLocalDetails` with sort code and account number\n- `SWIFT` - international wire\n          ",
@@ -900,7 +960,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/accounts/{accountId}/deposit-instructions"
+      "path": "/v0/accounts/{accountId}/deposit-instructions",
+      "resource": "accounts"
     },
     "depositOrdersGetDepositOrders": {
       "description": "\n**Retrieve a paginated list of the deposit orders made by an investor.**\n\n> ⚠️ **For displaying an account's activity, prefer the [account transaction history endpoint](#tag/Account-transactions/operation/accountTransactions.getAccountTransactions).** It returns deposits, withdrawals, transfers and yield accruals as a single time-ordered stream, with cursor pagination, so you don't need to call multiple per-order-type endpoints and reconcile their results.\n\n- Orders are sorted by creation date (newest first).\n- When `shareClassId` is specified, only deposit orders for that share class are returned.\n- Pagination parameters (`page` & `limit`) are optional and default to `page = 1` and `limit = 50`.\n          ",
@@ -927,7 +988,8 @@ export const OperationCatalog = {
           "required": false
         }
       ],
-      "path": "/v0/deposit-orders/"
+      "path": "/v0/deposit-orders/",
+      "resource": "deposit-orders"
     },
     "depositOrdersCreateDepositOrder": {
       "description": "\n**Create a new deposit order for an investor with the specified parameters.**\n\n- Return order details, including wire instructions to fund the deposit.\n\n> **Distribute-with-Spiko's-license distributors** cannot place this order from their backend. The investor must place it directly from the browser with a short-lived [Investor JWT](/developers/distributor_api/technical_guides/investor_jwt), targeting the investor-scoped path **`POST /v0/investor/deposit-orders/`** (identical payload and response, but authenticated with the investor JWT as bearer token instead of your API credentials).\n",
@@ -936,7 +998,8 @@ export const OperationCatalog = {
       "path": "/v0/deposit-orders/",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "deposit-orders"
     },
     "depositOrdersGetDepositOrder": {
       "description": "\n**Retrieve information about a specific deposit order.**\n\n- Includes order status (`created` / `pending-collection` / `funded` / `executed` / `canceled`).\n",
@@ -948,7 +1011,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/deposit-orders/{id}"
+      "path": "/v0/deposit-orders/{id}",
+      "resource": "deposit-orders"
     },
     "depositOrdersGetAllDistributorDepositOrders": {
       "description": "\n**Retrieve a paginated list of all deposit orders made by a distributor.**\n\n> ⚠️ **For displaying an account's activity, prefer the [account transaction history endpoint](#tag/Account-transactions/operation/accountTransactions.getAccountTransactions).** It returns deposits, withdrawals, transfers and yield accruals as a single time-ordered stream, with cursor pagination, so you don't need to call multiple per-order-type endpoints and reconcile their results.\n\n- Orders are sorted by creation date (newest first).\n- Pagination parameters (`page` & `limit`) are optional and default to `page = 1` and `limit = 50`.\n          ",
@@ -965,7 +1029,8 @@ export const OperationCatalog = {
           "required": false
         }
       ],
-      "path": "/v0/deposit-orders/all/"
+      "path": "/v0/deposit-orders/all/",
+      "resource": "deposit-orders"
     },
     "depositOrdersCancelDepositOrder": {
       "description": "**Cancel a deposit order.** Order must be in created or pending-collection status.",
@@ -977,7 +1042,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/deposit-orders/{id}/cancel"
+      "path": "/v0/deposit-orders/{id}/cancel",
+      "resource": "deposit-orders"
     },
     "withdrawalOrdersGetWithdrawalOrders": {
       "description": "\n**Retrieve a paginated list of the withdrawal orders made by an investor.**\n\n> ⚠️ **For displaying an account's activity, prefer the [account transaction history endpoint](#tag/Account-transactions/operation/accountTransactions.getAccountTransactions).** It returns deposits, withdrawals, transfers and yield accruals as a single time-ordered stream, with cursor pagination, so you don't need to call multiple per-order-type endpoints and reconcile their results.\n\n- Orders are sorted by creation date (newest first).\n- When `shareClassId` is specified, only withdrawal orders for that share class are returned.\n- Pagination parameters (`page` & `limit`) are optional and default to `page = 1` and `limit = 50`.\n          ",
@@ -1004,7 +1070,8 @@ export const OperationCatalog = {
           "required": false
         }
       ],
-      "path": "/v0/withdrawal-orders/"
+      "path": "/v0/withdrawal-orders/",
+      "resource": "withdrawal-orders"
     },
     "withdrawalOrdersCreateWithdrawalOrder": {
       "description": "\n**Create a new withdrawal order for an investor with the specified parameters.**\n\n- The `quantity` field supports three modes:\n  - `{\"mode\":\"amount\",\"amount\":{\"value\":\"1000\",\"currency\":\"USD\"}}` - withdraw a specific fiat amount\n  - `{\"mode\":\"shares\",\"shares\":\"10.5\"}` - withdraw a specific number of shares\n  - `{\"mode\":\"total\"}` - withdraw all shares (full withdrawal)\n- If the order is expressed in shares or if it is total, the currency used will be the bank account currency.\n- Returns complete order details, including its UUID identifier.\n\n> **Distribute-with-Spiko's-license distributors** cannot place this order from their backend. The investor must place it directly from the browser with a short-lived [Investor JWT](/developers/distributor_api/technical_guides/investor_jwt), targeting the investor-scoped path **`POST /v0/investor/withdrawal-orders/`** (identical payload and response, but authenticated with the investor JWT as bearer token instead of your API credentials).\n",
@@ -1013,7 +1080,8 @@ export const OperationCatalog = {
       "path": "/v0/withdrawal-orders/",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "withdrawal-orders"
     },
     "withdrawalOrdersGetWithdrawalOrder": {
       "description": "\n**Retrieve information about a specific withdrawal order.**\n\n- Includes order status (`pending` / `executed` / `canceled`).\n",
@@ -1025,7 +1093,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/withdrawal-orders/{id}"
+      "path": "/v0/withdrawal-orders/{id}",
+      "resource": "withdrawal-orders"
     },
     "withdrawalOrdersGetAllDistributorWithdrawalOrders": {
       "description": "\n**Retrieve a paginated list of all withdrawal orders made by a distributor.**\n\n> ⚠️ **For displaying an account's activity, prefer the [account transaction history endpoint](#tag/Account-transactions/operation/accountTransactions.getAccountTransactions).** It returns deposits, withdrawals, transfers and yield accruals as a single time-ordered stream, with cursor pagination, so you don't need to call multiple per-order-type endpoints and reconcile their results.\n\n- Orders are sorted by creation date (newest first).\n- Pagination parameters (`page` & `limit`) are optional and default to `page = 1` and `limit = 50`.\n          ",
@@ -1042,7 +1111,8 @@ export const OperationCatalog = {
           "required": false
         }
       ],
-      "path": "/v0/withdrawal-orders/all/"
+      "path": "/v0/withdrawal-orders/all/",
+      "resource": "withdrawal-orders"
     },
     "withdrawalOrdersCancelWithdrawalOrder": {
       "description": "**Cancel a withdrawal order.** Order must be in `pending` status.",
@@ -1054,7 +1124,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/withdrawal-orders/{id}/cancel"
+      "path": "/v0/withdrawal-orders/{id}/cancel",
+      "resource": "withdrawal-orders"
     },
     "portfoliosGetPortfolio": {
       "description": "Retrieve a view of an investor's investment portfolio, including current asset values, asset allocation, and performance metrics.",
@@ -1066,7 +1137,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/portfolios/"
+      "path": "/v0/portfolios/",
+      "resource": "portfolios"
     },
     "bankAccountsGetBankAccounts": {
       "description": "\n**Retrieve all bank accounts for a given investor and currency.**\n\n- Returns account details including IBAN, BIC, and validation status.\n- Excludes archived bank accounts.\n            ",
@@ -1083,7 +1155,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/bank-accounts"
+      "path": "/v0/bank-accounts",
+      "resource": "bank-accounts"
     },
     "bankAccountsAddBankAccount": {
       "description": "\n**Create a new bank account, linked to an existing investor, and for a given currency.**\n\n- Link the specified banking details to the investor's profile for future withdrawals processing.\n- EUR/GBP accounts may undergo automated verification (VoP/CoP). The bank account status will reflect the verification state.\n- Other currencies REQUIRE a proof of bank account ownership document (`proofInvestorDocumentId`).\n- For non-EUR accounts, the beneficiary `address` is temporarily optional: when omitted, the investor's registered address is used instead. It will become required in a future update.\n- Return complete bank account information.\n          ",
@@ -1092,7 +1165,8 @@ export const OperationCatalog = {
       "path": "/v0/bank-accounts",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "bank-accounts"
     },
     "bankAccountsArchiveBankAccount": {
       "description": "\n**Archive a bank account. The associated proof of ownership document (if any) is also archived.**\n\n- Once archived, a bank account is no longer available for new transactions, but remains accessible for historical reference and audit purposes.\n- Any pending withdrawal orders that were using this account will have the bank account reference removed. Orders that are already executed are not affected.\n          ",
@@ -1104,7 +1178,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/bank-accounts/{id}"
+      "path": "/v0/bank-accounts/{id}",
+      "resource": "bank-accounts"
     },
     "bankAccountsGetBankAccount": {
       "description": "\n**Fetch a bank account by its ID.**\n\n- Return detailed bank account information, including IBAN or account number, BIC, and validation status.\n        ",
@@ -1116,7 +1191,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/bank-accounts/{id}"
+      "path": "/v0/bank-accounts/{id}",
+      "resource": "bank-accounts"
     },
     "bankAccountsUploadBankAccountProofDocument": {
       "description": "\n**Upload a proof of bank account ownership document for a bank account that was invalidated after VoP verification failure.**\n\n- Only allowed on bank accounts with status `invalidated`.\n- Transitions the bank account to `pending-validation` for manual review by Spiko's operations team.\n- The `proofInvestorDocumentId` must reference a previously uploaded investor document.\n          ",
@@ -1131,7 +1207,8 @@ export const OperationCatalog = {
       "path": "/bank-accounts/{id}",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "bank-accounts"
     },
     "accountingPositionsGetAccountingPositionsHistory": {
       "description": "\n**Retrieve detailed accounting positions (midnight to midnight UTC) for an investor in a specific share class.**\n\nReturns a chronological list of positions within the specified date range, including:\n- Holdings (in shares and in currency);\n- Daily and total subscriptions, redemptions, and transfers;\n- Realized and unrealized gains;\n- Daily and total yields.\n        ",
@@ -1158,7 +1235,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/accounting-positions/history"
+      "path": "/v0/accounting-positions/history",
+      "resource": "accounting-positions"
     },
     "accountingPositionsDownloadAccountStatement": {
       "description": "\n  **Download an account statement related to an investor and a share class between two dates.**\n\n  - The account statement will be a pdf file.\n            ",
@@ -1190,7 +1268,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/accounting-positions/account-statement"
+      "path": "/v0/accounting-positions/account-statement",
+      "resource": "accounting-positions"
     },
     "yieldsGetYieldHistory": {
       "description": "\n**Return a chronological list of daily yields for an investor in a specific share class.**\n\n> ⚠️ **For displaying an account's activity, prefer the [account transaction history endpoint](#tag/Account-transactions/operation/accountTransactions.getAccountTransactions).** It returns deposits, withdrawals, transfers and yield accruals as a single time-ordered stream, with cursor pagination, so you don't need to call multiple per-order-type endpoints and reconcile their results.\n\n- `from` and `to` parameters are optional\n          ",
@@ -1222,7 +1301,8 @@ export const OperationCatalog = {
           "required": false
         }
       ],
-      "path": "/v0/yields/history"
+      "path": "/v0/yields/history",
+      "resource": "yields"
     },
     "yieldsGetYield": {
       "description": "\n**Return a single daily yield by its identifier.**\n\nThe identifier is the `id` delivered in the `yield.credited` webhook payload.\n          ",
@@ -1234,7 +1314,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/yields/{accountingPositionId}"
+      "path": "/v0/yields/{accountingPositionId}",
+      "resource": "yields"
     },
     "usersGetUsersOfInvestor": {
       "description": "\n**Retrieve all users associated with an investor.**\n\n- Returns the list of users with their roles (admin, manager, or viewer).\n          ",
@@ -1246,7 +1327,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/investors/{investorId}/users"
+      "path": "/v0/investors/{investorId}/users",
+      "resource": "users"
     },
     "usersCreateInvestorInvitation": {
       "description": "\n**Invite a new user to join an investor account.**\n\n- If the user already has a Spiko account, they will be added directly to the investor with the specified role.\n- If the user does not have a Spiko account, an invitation email will be sent.\n- Returns either the created invitation or the added user depending on the scenario.\n          ",
@@ -1261,7 +1343,8 @@ export const OperationCatalog = {
       "path": "/v0/investors/{investorId}/users",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "users"
     },
     "usersGetPendingInvitationsOfInvestor": {
       "description": "\n**Retrieve all pending user invitations for an investor.**\n\n- Returns invitations that have been sent but not yet accepted.\n          ",
@@ -1273,7 +1356,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/investors/{investorId}/invitations"
+      "path": "/v0/investors/{investorId}/invitations",
+      "resource": "users"
     },
     "usersGetInvitationOfInvestor": {
       "description": "\n**Retrieve a user invitation by its ID.**\n\n- Returns the invitation with its current status (`pending` or `accepted`).\n- Useful for looking up an invitation when receiving an `investor-invitation.accepted` webhook.\n          ",
@@ -1290,7 +1374,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/investors/{investorId}/invitations/{id}"
+      "path": "/v0/investors/{investorId}/invitations/{id}",
+      "resource": "users"
     },
     "usersUnlinkUser": {
       "description": "\n**Remove a user from an investor account.**\n          ",
@@ -1307,7 +1392,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/investors/{investorId}/users/{userId}"
+      "path": "/v0/investors/{investorId}/users/{userId}",
+      "resource": "users"
     },
     "usersDeleteInvitation": {
       "description": "\n**Delete a pending user invitation for an investor.**\n\n- Only pending (not yet accepted) invitations can be deleted.\n- The invitation is identified by the invitee's email address.\n          ",
@@ -1324,7 +1410,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/investors/{investorId}/invitations/{email}"
+      "path": "/v0/investors/{investorId}/invitations/{email}",
+      "resource": "users"
     },
     "usersResendInvitation": {
       "description": "\n**Resend the invitation email for a pending user invitation.**\n\n- Only pending (not yet accepted) invitations can be resent.\n- The invitation is identified by the invitee's email address.\n- A new invitation email is sent to the invitee.\n          ",
@@ -1341,7 +1428,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/investors/{investorId}/invitations/{email}/resend"
+      "path": "/v0/investors/{investorId}/invitations/{email}/resend",
+      "resource": "users"
     },
     "accountTransactionsGetAccountTransactions": {
       "description": "\n**Retrieve the unified transaction history for an account.**\n\nThis is the recommended endpoint for displaying an account's activity to investors. It returns deposits, withdrawals, transfers and yield accruals merged into a single, paginated, time-ordered stream.\n\n- Results are paginated using a cursor. Pass the `nextCursor` returned by the previous call to retrieve subsequent pages.\n- Sorted anti-chronologically (newest first) by default; pass `direction=asc` for chronological order.\n- Optional `transactionType` filter narrows to one of `deposit`, `withdrawal`, `transfer`, or `yield`.\n- Canceled and failed entries are excluded.\n          ",
@@ -1378,19 +1466,22 @@ export const OperationCatalog = {
           "required": false
         }
       ],
-      "path": "/v0/account-transactions/"
+      "path": "/v0/account-transactions/",
+      "resource": "account-transactions"
     },
     "distributorsGetDefaultDistributor": {
       "description": "Retrieve information about the distributor linked to the client credentials.",
       "method": "GET",
       "parameters": [],
-      "path": "/v0/distributors/me"
+      "path": "/v0/distributors/me",
+      "resource": "distributors"
     },
     "distributorsGetAllAllowedShareClasses": {
       "description": "List share classes accessible to the authenticated distributor.",
       "method": "GET",
       "parameters": [],
-      "path": "/v0/share-classes"
+      "path": "/v0/share-classes",
+      "resource": "distributors"
     },
     "distributorInvestorContractsGetDistributorInvestorContract": {
       "description": "Retrieve information about a distributor investor contract (investor, share class, annual fee).",
@@ -1402,7 +1493,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/distributor-investor-contracts/{id}"
+      "path": "/v0/distributor-investor-contracts/{id}",
+      "resource": "distributor-investor-contracts"
     },
     "distributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClass": {
       "description": "Get a distributor investor contract informations of the given investor.",
@@ -1419,7 +1511,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/distributor-investor-contracts/investor"
+      "path": "/v0/distributor-investor-contracts/investor",
+      "resource": "distributor-investor-contracts"
     },
     "distributorInvestorContractsCreateDistributorInvestorContract": {
       "description": "Create a new contract that defines the annual fee paid by the investor to the distributor for a share class.",
@@ -1428,7 +1521,8 @@ export const OperationCatalog = {
       "path": "/v0/distributor-investor-contracts",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "distributor-investor-contracts"
     },
     "distributorInvestorContractsUpdateDistributorInvestorContractFee": {
       "description": "Update the annual fee of an existing distributor investor contract.",
@@ -1437,7 +1531,8 @@ export const OperationCatalog = {
       "path": "/v0/distributor-investor-contracts",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "distributor-investor-contracts"
     },
     "distributorInvestorContractsGetPaidFees": {
       "description": "\n**Retrieve the fees paid for the given distributor investor contract.**\n\n- Returns an array of paid fees both in amount and in number of shares, sorted by day.\n- `from` and `to` query parameters are optional and used to filter the results by day range.\n          ",
@@ -1459,7 +1554,8 @@ export const OperationCatalog = {
           "required": false
         }
       ],
-      "path": "/v0/distributor-investor-contracts/{distributorInvestorContractId}/paid-fees"
+      "path": "/v0/distributor-investor-contracts/{distributorInvestorContractId}/paid-fees",
+      "resource": "distributor-investor-contracts"
     },
     "investorTokensCreateInvestorToken": {
       "description": "Create a short-lived, single-use JWT for the investor to place orders directly from the distributor frontend.",
@@ -1468,13 +1564,15 @@ export const OperationCatalog = {
       "path": "/v0/investor-tokens/",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "investor-tokens"
     },
     "webhookConfigurationsListWebhookConfigurations": {
       "description": "List all webhook configurations for the authenticated distributor.",
       "method": "GET",
       "parameters": [],
-      "path": "/v0/webhook-configurations"
+      "path": "/v0/webhook-configurations",
+      "resource": "webhook-configurations"
     },
     "webhookConfigurationsCreateWebhookConfiguration": {
       "description": "Register a new webhook endpoint. The signing secret is returned only in this response - store it securely.",
@@ -1483,7 +1581,8 @@ export const OperationCatalog = {
       "path": "/v0/webhook-configurations",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "webhook-configurations"
     },
     "webhookConfigurationsUpdateWebhookConfiguration": {
       "description": "Update the URL and topics of an active webhook configuration.",
@@ -1498,7 +1597,8 @@ export const OperationCatalog = {
       "path": "/v0/webhook-configurations/{webhookConfigurationId}",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "webhook-configurations"
     },
     "webhookConfigurationsDisableWebhookConfiguration": {
       "description": "Disable an active webhook configuration. No more events will be delivered to this endpoint.",
@@ -1510,7 +1610,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/webhook-configurations/{webhookConfigurationId}/disable"
+      "path": "/v0/webhook-configurations/{webhookConfigurationId}/disable",
+      "resource": "webhook-configurations"
     },
     "webhookConfigurationsEnableWebhookConfiguration": {
       "description": "Re-enable a disabled or circuit-broken webhook configuration.",
@@ -1522,7 +1623,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/webhook-configurations/{webhookConfigurationId}/enable"
+      "path": "/v0/webhook-configurations/{webhookConfigurationId}/enable",
+      "resource": "webhook-configurations"
     },
     "webhookConfigurationsRotateWebhookSigningSecret": {
       "description": "Generate a new signing secret. Both old and new secrets are valid for 24 hours. The new secret is returned only in this response.",
@@ -1534,7 +1636,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/webhook-configurations/{webhookConfigurationId}/rotate-secret"
+      "path": "/v0/webhook-configurations/{webhookConfigurationId}/rotate-secret",
+      "resource": "webhook-configurations"
     },
     "webhookEventsListWebhookEvents": {
       "description": "Retrieve webhook events using cursor-based pagination. Pass the last `sequenceNumber` as `after` to get the next page.",
@@ -1556,7 +1659,8 @@ export const OperationCatalog = {
           "required": false
         }
       ],
-      "path": "/v0/webhook-events"
+      "path": "/v0/webhook-events",
+      "resource": "webhook-events"
     },
     "investorDocumentsGetInvestorDocuments": {
       "description": "\n**Retrieve all documents for an investor.**\n\n- Returns a list of documents uploaded for the specified investor.\n- Only active (non-archived) documents are returned.\n- Optionally filter by `documentTypes` (e.g. [`official-id`, `proof-of-address`, `imprime-fiscal-unique`]).\n          ",
@@ -1573,7 +1677,8 @@ export const OperationCatalog = {
           "required": false
         }
       ],
-      "path": "/v0/investor-documents"
+      "path": "/v0/investor-documents",
+      "resource": "investor-documents"
     },
     "investorDocumentsUploadInvestorDocument": {
       "description": "\n**Upload document (official ID / proof of address / screening report etc.) related to an investor.**\n\n- Supported extensions are: pdf, jpg, png, doc, docx, xls, xlsx.\n- Returns the ID of the created investor document.\n        ",
@@ -1582,7 +1687,8 @@ export const OperationCatalog = {
       "path": "/v0/investor-documents",
       "requestBody": {
         "required": true
-      }
+      },
+      "resource": "investor-documents"
     },
     "investorDocumentsDownloadInvestorDocument": {
       "description": "\n**Get a signed URL to download a specific investor document.**\n\n- Returns a pre-signed URL that can be used to download the document.\n- The URL is valid for a limited time.\n          ",
@@ -1594,7 +1700,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/investor-documents/{investorDocumentId}"
+      "path": "/v0/investor-documents/{investorDocumentId}",
+      "resource": "investor-documents"
     },
     "walletsGetWallet": {
       "description": "Retrieve wallet information by providing the wallet ID.",
@@ -1606,7 +1713,8 @@ export const OperationCatalog = {
           "required": true
         }
       ],
-      "path": "/v0/wallets/{walletId}"
+      "path": "/v0/wallets/{walletId}",
+      "resource": "wallets"
     }
   }
 } as const satisfies Readonly<

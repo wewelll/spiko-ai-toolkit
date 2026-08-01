@@ -6,6 +6,7 @@ import * as NodeHttpClient from "@effect/platform-node/NodeHttpClient"
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 import * as NodeServices from "@effect/platform-node/NodeServices"
 import { Cause, Console, Effect, FileSystem, Schema } from "effect"
+import * as String from "effect/String"
 import { Command, Flag } from "effect/unstable/cli"
 import * as HttpClient from "effect/unstable/http/HttpClient"
 import type { OpenAPISpec, OpenAPISpecMethodName } from "effect/unstable/httpapi/OpenApi"
@@ -48,6 +49,8 @@ const methods: ReadonlyArray<OpenAPISpecMethodName> = [
   "put",
   "trace",
 ]
+
+const cliResource = (tag: string): string => String.kebabCase(tag.replace(/\s*\([^)]*\)\s*/g, " "))
 
 const readSpec = (definition: ApiDefinition, fetch: boolean) =>
   Effect.gen(function* () {
@@ -95,6 +98,7 @@ const generateCatalog = (
             })),
             path,
             requestBody: operation.requestBody === undefined ? undefined : { required: true },
+            resource: cliResource(operation.tags[0]),
           }
         }
       }
@@ -120,6 +124,7 @@ export interface OperationMetadata {
   readonly method: string
   readonly parameters: ReadonlyArray<OperationParameter>
   readonly path: string
+  readonly resource: string
   readonly requestBody?: {
     readonly required: boolean
   }
