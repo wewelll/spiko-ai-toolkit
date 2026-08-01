@@ -1,4 +1,5 @@
 {
+  "$schema": "./node_modules/@effect/tsgo/schema.json",
   "compilerOptions": {
     "allowImportingTsExtensions": true,
     "exactOptionalPropertyTypes": true,
@@ -9,6 +10,13 @@
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
     "noUncheckedIndexedAccess": true,
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "diagnostics": true,
+        "includeSuggestionsInTsc": false
+      }
+    ],
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
