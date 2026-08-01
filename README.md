@@ -77,17 +77,19 @@ node apps/cli/dist/index.js operations investor
 node apps/cli/dist/index.js operations distributor
 ```
 
-Call an operation using JSON objects for its OpenAPI parameter groups:
+Call an operation using Effect CLI's repeatable `key=value` flags:
 
 ```sh
 node apps/cli/dist/index.js call public GetFund \
-  --path '{"fundId":"00000000-0000-0000-0000-000000000000"}'
+  --path fundId=00000000-0000-0000-0000-000000000000
 
 node apps/cli/dist/index.js call public GetLatestExchangeRate \
-  --params '{"fundId":"...","baseCurrency":"EUR","quoteCurrency":"USD"}'
+  --param fundId=... \
+  --param baseCurrency=EUR \
+  --param quoteCurrency=USD
 ```
 
-The generated client validates response bodies. Required OpenAPI parameters are checked before the request. Every non-GET/HEAD call requires `--confirm`; idempotency headers declared by Spiko must be supplied in `--params`.
+Pass request bodies as JSON files with `--payload request.json`. Effect CLI parses the file and Effect Schema validates the operation's path/query/header parameters before the request. Every non-GET/HEAD call requires `--confirm`; idempotency headers declared by Spiko must be supplied with `--param`.
 
 ## MCP server
 

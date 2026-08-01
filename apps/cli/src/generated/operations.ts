@@ -5,7 +5,7 @@ export const ApiNames = ["public", "investor", "distributor"] as const
 export type ApiName = (typeof ApiNames)[number]
 
 export interface OperationParameter {
-  readonly in: string
+  readonly in: "query" | "header" | "path" | "cookie"
   readonly name: string
   readonly required: boolean
 }

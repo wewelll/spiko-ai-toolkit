@@ -5,50 +5,12 @@ import { camelize } from "@effect/openapi-generator/Utils"
 import * as NodeHttpClient from "@effect/platform-node/NodeHttpClient"
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 import * as NodeServices from "@effect/platform-node/NodeServices"
-import { Cause, Console, Effect, FileSystem, Schema, SchemaTransformation } from "effect"
-import * as Command from "effect/unstable/cli/Command"
-import * as Flag from "effect/unstable/cli/Flag"
+import { Cause, Console, Effect, FileSystem, Schema } from "effect"
+import { Command, Flag } from "effect/unstable/cli"
 import * as HttpClient from "effect/unstable/http/HttpClient"
-import type { OpenAPISpec } from "effect/unstable/httpapi/OpenApi"
+import type { OpenAPISpec, OpenAPISpecMethodName } from "effect/unstable/httpapi/OpenApi"
 
-interface ApiDefinition {
-  readonly id: "distributor" | "investor" | "public"
-  readonly clientName: string
-  readonly generatedFile: string
-  readonly specFile: string
-  readonly specUrl: string
-}
-
-interface OpenApiParameter {
-  readonly $ref?: string
-  readonly in?: string
-  readonly name?: string
-  readonly required?: boolean
-}
-
-interface OpenApiOperation {
-  readonly description?: string
-  readonly operationId?: string
-  readonly parameters?: ReadonlyArray<OpenApiParameter>
-  readonly requestBody?: {
-    readonly required?: boolean
-  }
-  readonly summary?: string
-}
-
-interface OpenApiPath {
-  readonly parameters?: ReadonlyArray<OpenApiParameter>
-  readonly [method: string]: OpenApiOperation | ReadonlyArray<OpenApiParameter> | undefined
-}
-
-interface OpenApiDocument {
-  readonly components?: {
-    readonly parameters?: Readonly<Record<string, OpenApiParameter>>
-  }
-  readonly paths: Readonly<Record<string, OpenApiPath>>
-}
-
-const apis: ReadonlyArray<ApiDefinition> = [
+const apis = [
   {
     id: "public",
     clientName: "SpikoPublicApi",
@@ -70,13 +32,22 @@ const apis: ReadonlyArray<ApiDefinition> = [
     specFile: "openapi/distributor-api.json",
     specUrl: "https://distributor-api.spiko.io/v0/docs/openapi.json",
   },
+] as const
+
+type ApiDefinition = (typeof apis)[number]
+
+const parseJson = Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Json))
+
+const methods: ReadonlyArray<OpenAPISpecMethodName> = [
+  "delete",
+  "get",
+  "head",
+  "options",
+  "patch",
+  "post",
+  "put",
+  "trace",
 ]
-
-const JsonFromString = Schema.String.pipe(
-  Schema.decodeTo(Schema.Unknown, SchemaTransformation.fromJsonString),
-)
-
-const parseJson = Schema.decodeUnknownEffect(JsonFromString)
 
 const readSpec = (definition: ApiDefinition, fetch: boolean) =>
   Effect.gen(function* () {
@@ -99,53 +70,31 @@ const readSpec = (definition: ApiDefinition, fetch: boolean) =>
   })
 
 const generateCatalog = (
-  documents: ReadonlyArray<readonly [ApiDefinition, OpenApiDocument]>,
+  documents: ReadonlyArray<readonly [ApiDefinition, OpenAPISpec]>,
 ): string => {
   const catalog = Object.fromEntries(
     documents.map(([definition, document]) => {
       const operations: Record<string, unknown> = {}
 
       for (const [path, pathItem] of Object.entries(document.paths)) {
-        for (const method of [
-          "delete",
-          "get",
-          "head",
-          "options",
-          "patch",
-          "post",
-          "put",
-        ] as const) {
+        for (const method of methods) {
           const operation = pathItem[method]
-          if (operation === undefined || Array.isArray(operation)) {
+          if (operation === undefined) {
             continue
           }
 
-          const resolvedOperation = operation as OpenApiOperation
-          const operationId = resolvedOperation.operationId ?? `${method.toUpperCase()}${path}`
-          const parameters = [
-            ...(pathItem.parameters ?? []),
-            ...(resolvedOperation.parameters ?? []),
-          ].map((parameter) => resolveParameter(document, parameter))
+          const operationId = operation.operationId
 
           operations[camelize(operationId)] = {
-            description: resolvedOperation.description ?? resolvedOperation.summary ?? operationId,
+            description: operation.description ?? operation.summary ?? operationId,
             method: method.toUpperCase(),
-            parameters: parameters.flatMap((parameter) =>
-              parameter.name === undefined || parameter.in === undefined
-                ? []
-                : [
-                    {
-                      in: parameter.in,
-                      name: parameter.name,
-                      required: parameter.required === true,
-                    },
-                  ],
-            ),
+            parameters: operation.parameters.map((parameter) => ({
+              in: parameter.in,
+              name: parameter.name,
+              required: parameter.required,
+            })),
             path,
-            requestBody:
-              resolvedOperation.requestBody === undefined
-                ? undefined
-                : { required: resolvedOperation.requestBody.required === true },
+            requestBody: operation.requestBody === undefined ? undefined : { required: true },
           }
         }
       }
@@ -161,7 +110,7 @@ export const ApiNames = ["public", "investor", "distributor"] as const
 export type ApiName = (typeof ApiNames)[number]
 
 export interface OperationParameter {
-  readonly in: string
+  readonly in: "query" | "header" | "path" | "cookie"
   readonly name: string
   readonly required: boolean
 }
@@ -182,22 +131,6 @@ export const OperationCatalog = ${JSON.stringify(catalog, null, 2)} as const sat
 `
 }
 
-const resolveParameter = (
-  document: OpenApiDocument,
-  parameter: OpenApiParameter,
-): OpenApiParameter => {
-  if (parameter.$ref === undefined) {
-    return parameter
-  }
-
-  const prefix = "#/components/parameters/"
-  if (!parameter.$ref.startsWith(prefix)) {
-    return parameter
-  }
-
-  return document.components?.parameters?.[parameter.$ref.slice(prefix.length)] ?? parameter
-}
-
 const fetch = Flag.boolean("fetch").pipe(
   Flag.withDescription("Download the latest Spiko specifications before generating clients"),
 )
@@ -212,9 +145,12 @@ const generate = Command.make("generate-clients", { fetch }, ({ fetch }) =>
     const documents = yield* Effect.forEach(apis, (definition) =>
       Effect.gen(function* () {
         const source = yield* readSpec(definition, fetch)
-        const spec = yield* parseJson(source)
+        const json = yield* parseJson(source)
+        // The generator's own CLI uses this boundary cast: it accepts external OpenAPI
+        // documents but does not currently export a runtime Schema for OpenAPISpec.
+        const spec = json as unknown as OpenAPISpec
         const warnings: Array<OpenApiGenerator.OpenApiGeneratorWarning> = []
-        const generated = yield* generator.generate(spec as OpenAPISpec, {
+        const generated = yield* generator.generate(spec, {
           format: "httpclient",
           name: definition.clientName,
           onWarning: (warning) => {
@@ -242,7 +178,7 @@ const generate = Command.make("generate-clients", { fetch }, ({ fetch }) =>
         }
 
         yield* Console.log(`Generated ${definition.generatedFile}`)
-        return [definition, spec as OpenApiDocument] as const
+        return [definition, spec] as const
       }),
     )
 
