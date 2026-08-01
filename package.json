@@ -15,19 +15,22 @@
     "format:check": "oxfmt --check .",
     "generate:check": "pnpm generate:clients && git diff --exit-code -- openapi packages/public-api-client/src/generated.ts packages/investor-api-client/src/generated.ts packages/distributor-api-client/src/generated.ts apps/cli/src/generated/operations.ts",
     "generate:clients": "node --experimental-strip-types tools/generate-clients.ts",
-    "lint": "oxlint --deny-warnings .",
+    "lint": "oxlint --type-aware --deny-warnings .",
+    "postinstall": "effect-tsgo patch",
     "specs:update": "node --experimental-strip-types tools/generate-clients.ts --fetch",
     "test": "pnpm --filter './packages/**' -r build && pnpm -r --if-present test",
     "typecheck": "tsc --noEmit && pnpm -r --if-present typecheck"
   },
   "devDependencies": {
-    "@effect/openapi-generator": "4.0.0-beta.101",
-    "@effect/platform-node": "4.0.0-beta.101",
-    "@types/node": "24.10.14",
-    "effect": "4.0.0-beta.101",
-    "oxfmt": "0.59.0",
-    "oxlint": "1.74.0",
-    "rolldown": "1.2.0",
+    "@effect/openapi-generator": "4.0.0-beta.102",
+    "@effect/platform-node": "4.0.0-beta.102",
+    "@effect/tsgo": "0.24.3",
+    "@types/node": "24.13.3",
+    "effect": "4.0.0-beta.102",
+    "oxfmt": "0.61.0",
+    "oxlint": "1.76.0",
+    "oxlint-tsgolint": "7.0.2001",
+    "rolldown": "1.2.1",
     "typescript": "7.0.2",
     "vitest": "4.1.10"
   },
@@ -35,5 +38,5 @@
     "node": ">=24 <25",
     "pnpm": ">=11 <12"
   },
-  "packageManager": "pnpm@11.15.1"
+  "packageManager": "pnpm@11.18.0+sha512.33d83c77da82f49fba836925c6f1b841181ec3132b670639bd012f7075f5c7cf634c5f870147c19aae7478fac01df09d8892e880454896edd23ee9b33757563c"
 }

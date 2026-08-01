@@ -195,9 +195,11 @@ const generate = Command.make("generate-clients", { fetch }, ({ fetch }) =>
 )
 
 Command.run(generate, { version: "0.1.0" }).pipe(
-  Effect.provide(OpenApiGenerator.layerTransformerSchema),
-  Effect.provide(NodeHttpClient.layerUndici),
+  Effect.provide([
+    OpenApiGenerator.layerTransformerSchema,
+    NodeHttpClient.layerUndici,
+    NodeServices.layer,
+  ]),
   Effect.tapCause((cause) => Console.error(Cause.pretty(cause))),
-  Effect.provide(NodeServices.layer),
   NodeRuntime.runMain,
 )

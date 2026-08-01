@@ -6,8 +6,4 @@ import * as NodeServices from "@effect/platform-node/NodeServices"
 import { Effect } from "effect"
 import { program } from "./program.ts"
 
-program.pipe(
-  Effect.provide(NodeHttpClient.layerUndici),
-  Effect.provide(NodeServices.layer),
-  NodeRuntime.runMain,
-)
+program.pipe(Effect.provide([NodeHttpClient.layerUndici, NodeServices.layer]), NodeRuntime.runMain)
