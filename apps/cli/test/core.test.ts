@@ -21,13 +21,6 @@ const writeOperation: OperationMetadata = {
   requestBody: { required: true },
 }
 
-const noParameterOperation: OperationMetadata = {
-  description: "List funds",
-  method: "GET",
-  parameters: [],
-  path: "/funds",
-}
-
 describe("prepareInvocation", () => {
   it("orders path arguments and builds generated client options", async () => {
     const result = await Effect.runPromise(
@@ -59,48 +52,19 @@ describe("prepareInvocation", () => {
     expect(String(exit)).toContain("--confirm")
   })
 
-  it("requires a body when OpenAPI marks it as required", async () => {
-    const exit = await Effect.runPromiseExit(
+  it("passes the body parsed by Effect CLI to the generated client", async () => {
+    const result = await Effect.runPromise(
       prepareInvocation("CreateOrder", writeOperation, {
         confirm: true,
         params: {},
         path: {},
-        payload: Option.none(),
+        payload: Option.some({ amount: "100" }),
       }),
     )
 
-    expect(exit._tag).toBe("Failure")
-    expect(String(exit)).toContain("--payload")
-  })
-
-  it("uses Schema to reject missing and unknown operation parameters", async () => {
-    const missing = await Effect.runPromiseExit(
-      prepareInvocation("GetFund", readOperation, {
-        confirm: false,
-        params: { day: "2026-07-23" },
-        path: {},
-        payload: Option.none(),
-      }),
-    )
-    const unknown = await Effect.runPromiseExit(
-      prepareInvocation("GetFund", readOperation, {
-        confirm: false,
-        params: { day: "2026-07-23", typo: "value" },
-        path: { fundId: "fund-1" },
-        payload: Option.none(),
-      }),
-    )
-    const unsupported = await Effect.runPromiseExit(
-      prepareInvocation("GetFunds", noParameterOperation, {
-        confirm: false,
-        params: { typo: "value" },
-        path: {},
-        payload: Option.none(),
-      }),
-    )
-
-    expect(String(missing)).toContain("fundId")
-    expect(String(unknown)).toContain("typo")
-    expect(String(unsupported)).toContain("not accepted")
+    expect(result).toEqual({
+      args: [{ payload: { amount: "100" } }],
+      mutating: true,
+    })
   })
 })

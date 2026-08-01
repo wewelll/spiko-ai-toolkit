@@ -77,19 +77,19 @@ node apps/cli/dist/index.js operations investor
 node apps/cli/dist/index.js operations distributor
 ```
 
-Call an operation using Effect CLI's repeatable `key=value` flags:
+Each generated operation is an Effect CLI subcommand with its own required and optional flags. Inspect them with `spiko call <api> <operation> --help`:
 
 ```sh
 node apps/cli/dist/index.js call public GetFund \
-  --path fundId=00000000-0000-0000-0000-000000000000
+  --path-fundId 00000000-0000-0000-0000-000000000000
 
 node apps/cli/dist/index.js call public GetLatestExchangeRate \
-  --param fundId=... \
-  --param baseCurrency=EUR \
-  --param quoteCurrency=USD
+  --query-fundId ... \
+  --query-baseCurrency EUR \
+  --query-quoteCurrency USD
 ```
 
-Pass request bodies as JSON files with `--payload request.json`. Effect CLI parses the file and Effect Schema validates the operation's path/query/header parameters before the request. Every non-GET/HEAD call requires `--confirm`; idempotency headers declared by Spiko must be supplied with `--param`.
+For operations with a request body, `--payload request.json` is a required Effect CLI flag decoded with `Schema.Json`; operations without a body do not accept it. Every non-GET/HEAD call requires `--confirm`. Header parameters declared by Spiko are exposed as `--header-<name>` flags.
 
 ## MCP server
 
