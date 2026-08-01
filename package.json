@@ -9,8 +9,11 @@
     "build": "pnpm -r --if-present build",
     "check": "pnpm check:code && pnpm generate:check",
     "check:code": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
-    "dev:cli": "pnpm --filter @spiko/cli dev",
-    "dev:mcp": "pnpm --filter @spiko/mcp-server dev",
+    "changeset": "changeset",
+    "changeset-publish": "pnpm build && changeset publish",
+    "changeset-version": "changeset version",
+    "dev:cli": "pnpm --filter spiko-cli dev",
+    "dev:mcp": "pnpm --filter spiko-mcp dev",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "generate:check": "pnpm generate:clients && git diff --exit-code -- openapi packages/public-api-client/src/generated.ts packages/investor-api-client/src/generated.ts packages/distributor-api-client/src/generated.ts apps/cli/src/generated/operations.ts",
@@ -22,6 +25,8 @@
     "typecheck": "tsc --noEmit && pnpm -r --if-present typecheck"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "0.7.0",
+    "@changesets/cli": "2.31.1",
     "@effect/openapi-generator": "4.0.0-beta.102",
     "@effect/platform-node": "4.0.0-beta.102",
     "@effect/tsgo": "0.24.3",

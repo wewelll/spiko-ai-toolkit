@@ -1,15 +1,32 @@
 {
-  "name": "@spiko/mcp-server",
+  "name": "spiko-mcp",
   "version": "0.2.0",
-  "private": true,
   "description": "Effect-native Model Context Protocol server for Spiko's Public API.",
+  "keywords": [
+    "api",
+    "finance",
+    "mcp",
+    "model-context-protocol",
+    "spiko"
+  ],
+  "homepage": "https://github.com/wewelll/spiko-ai-toolkit#readme",
+  "bugs": "https://github.com/wewelll/spiko-ai-toolkit/issues",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wewelll/spiko-ai-toolkit.git",
+    "directory": "apps/mcp-server"
+  },
   "bin": {
-    "spiko-mcp-server": "dist/index.js"
+    "spiko-mcp": "dist/index.js"
   },
   "files": [
     "dist"
   ],
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "rolldown -c",
     "dev": "node --watch --experimental-strip-types src/index.ts",
@@ -17,14 +34,15 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
+  "devDependencies": {
     "@effect/platform-node": "catalog:",
     "@spiko/public-api-client": "workspace:*",
-    "effect": "catalog:"
-  },
-  "devDependencies": {
+    "effect": "catalog:",
     "rolldown": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24 <25"
   }
 }

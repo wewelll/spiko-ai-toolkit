@@ -1,8 +1,21 @@
 {
-  "name": "@spiko/cli",
+  "name": "spiko-cli",
   "version": "0.1.0",
-  "private": true,
   "description": "Effect-native CLI for Spiko's APIs.",
+  "keywords": [
+    "api",
+    "cli",
+    "finance",
+    "spiko"
+  ],
+  "homepage": "https://github.com/wewelll/spiko-ai-toolkit#readme",
+  "bugs": "https://github.com/wewelll/spiko-ai-toolkit/issues",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wewelll/spiko-ai-toolkit.git",
+    "directory": "apps/cli"
+  },
   "bin": {
     "spiko": "dist/index.js"
   },
@@ -10,6 +23,9 @@
     "dist"
   ],
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "rolldown -c",
     "dev": "node --experimental-strip-types src/index.ts",
@@ -17,16 +33,17 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
+  "devDependencies": {
     "@effect/platform-node": "catalog:",
     "@spiko/distributor-api-client": "workspace:*",
     "@spiko/investor-api-client": "workspace:*",
     "@spiko/public-api-client": "workspace:*",
-    "effect": "catalog:"
-  },
-  "devDependencies": {
+    "effect": "catalog:",
     "rolldown": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24 <25"
   }
 }

@@ -12,7 +12,7 @@ This PNPM workspace contains:
 
 ## Installation
 
-The CLI and MCP server will be published to npm. Once available, install the CLI with:
+Install the CLI from npm with:
 
 ```sh
 npm install --global spiko-cli
