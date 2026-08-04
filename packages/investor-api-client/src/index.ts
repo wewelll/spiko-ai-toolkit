@@ -9,6 +9,10 @@ export const defaultBaseUrl = "https://investor-api.spiko.io/v1"
 
 export type InvestorApiAuth =
   | {
+      readonly type: "apiKey"
+      readonly apiKey: Redacted.Redacted
+    }
+  | {
       readonly type: "basic"
       readonly clientId: Redacted.Redacted
       readonly clientSecret: Redacted.Redacted
@@ -23,24 +27,34 @@ export interface InvestorApiOptions {
   readonly baseUrl?: string
 }
 
+export interface InvestorApiClient extends Generated.SpikoInvestorApi {
+  readonly baseUrl: string
+}
+
 export const make = (
   httpClient: HttpClient.HttpClient,
   options: InvestorApiOptions,
-): Generated.SpikoInvestorApi => {
+): InvestorApiClient => {
+  const baseUrl = options.baseUrl ?? defaultBaseUrl
   const authenticate =
-    options.auth.type === "bearer"
-      ? HttpClientRequest.bearerToken(options.auth.accessToken)
-      : HttpClientRequest.basicAuth(options.auth.clientId, options.auth.clientSecret)
+    options.auth.type === "basic"
+      ? HttpClientRequest.basicAuth(options.auth.clientId, options.auth.clientSecret)
+      : HttpClientRequest.bearerToken(
+          options.auth.type === "apiKey" ? options.auth.apiKey : options.auth.accessToken,
+        )
 
-  return Generated.make(
-    httpClient.pipe(
-      HttpClient.mapRequest(HttpClientRequest.prependUrl(options.baseUrl ?? defaultBaseUrl)),
-      HttpClient.mapRequest(authenticate),
+  return {
+    ...Generated.make(
+      httpClient.pipe(
+        HttpClient.mapRequest(HttpClientRequest.prependUrl(baseUrl)),
+        HttpClient.mapRequest(authenticate),
+      ),
     ),
-  )
+    baseUrl,
+  }
 }
 
-export class InvestorApi extends Context.Service<InvestorApi, Generated.SpikoInvestorApi>()(
+export class InvestorApi extends Context.Service<InvestorApi, InvestorApiClient>()(
   "@spiko/investor-api-client/InvestorApi",
 ) {}
 
@@ -49,6 +63,15 @@ export const makeFromConfig = Effect.gen(function* () {
   const baseUrl = yield* Config.string("SPIKO_INVESTOR_API_BASE_URL").pipe(
     Config.withDefault(defaultBaseUrl),
   )
+  const apiKey = yield* Config.option(Config.redacted("SPIKO_INVESTOR_API_KEY"))
+
+  if (Option.isSome(apiKey)) {
+    return make(httpClient, {
+      auth: { apiKey: apiKey.value, type: "apiKey" },
+      baseUrl,
+    })
+  }
+
   const accessToken = yield* Config.option(Config.redacted("SPIKO_INVESTOR_ACCESS_TOKEN"))
 
   if (Option.isSome(accessToken)) {

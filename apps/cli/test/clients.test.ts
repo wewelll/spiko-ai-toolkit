@@ -34,6 +34,20 @@ describe("generated client configuration", () => {
     expect(request.headers.authorization).toBe("Bearer secret-token")
   })
 
+  it("adds Investor API key authentication as a bearer token", () => {
+    const client = InvestorApi.make(unusedHttpClient, {
+      auth: {
+        apiKey: Redacted.make("secret-api-key"),
+        type: "apiKey",
+      },
+      baseUrl: "https://investor.example.test/v1",
+    })
+    const request = preprocess(client.httpClient)
+
+    expect(request.url).toBe("https://investor.example.test/v1/funds/")
+    expect(request.headers.authorization).toBe("Bearer secret-api-key")
+  })
+
   it("adds Distributor API basic authentication", () => {
     const client = DistributorApi.make(unusedHttpClient, {
       baseUrl: "https://distributor.example.test/v0",

@@ -5,5 +5,9 @@ import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 import * as NodeServices from "@effect/platform-node/NodeServices"
 import { Effect } from "effect"
 import { program } from "./program.ts"
+import { layer as CredentialStoreLayer } from "./credentials.ts"
 
-program.pipe(Effect.provide([NodeHttpClient.layerUndici, NodeServices.layer]), NodeRuntime.runMain)
+program.pipe(
+  Effect.provide([CredentialStoreLayer, NodeHttpClient.layerUndici, NodeServices.layer]),
+  NodeRuntime.runMain,
+)

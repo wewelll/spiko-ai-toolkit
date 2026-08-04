@@ -1,6 +1,13 @@
+import { InvestorApi, type InvestorApiClient } from "@spiko/investor-api-client"
 import { PublicApi, type PublicApiClient } from "@spiko/public-api-client"
-import { Effect, Schema } from "effect"
+import { Effect, Predicate, Schema } from "effect"
 import { Tool, Toolkit } from "effect/unstable/ai"
+import {
+  InvestorMutatingOperationNames,
+  InvestorOperationCatalog,
+  InvestorReadOperationNames,
+  type InvestorOperationMetadata,
+} from "./generated/investor-operations.ts"
 
 const Day = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/)).annotate({
   description: "A calendar day in YYYY-MM-DD format",
@@ -154,6 +161,85 @@ export const GetLatestExchangeRate = makeTool(
   }),
 )
 
+const InvestorOperation = Schema.Struct({
+  description: Schema.String,
+  method: Schema.String,
+  name: Schema.String,
+  parameters: Schema.Array(
+    Schema.Struct({
+      in: Schema.Literals(["query", "header", "path", "cookie"]),
+      name: Schema.String,
+      required: Schema.Boolean,
+    }),
+  ),
+  path: Schema.String,
+  requiresPayload: Schema.Boolean,
+})
+
+const InvestorResult = Schema.Struct({
+  data: Schema.Unknown,
+  operation: Schema.String,
+  source: Schema.String,
+})
+
+const Parameters = Schema.Record(Schema.String, Schema.Json).annotate({
+  description: "Query, header, and cookie parameters keyed by their OpenAPI names",
+})
+
+const PathParameters = Schema.Record(Schema.String, Schema.String).annotate({
+  description: "Path parameters keyed by their OpenAPI names",
+})
+
+export const ListInvestorOperations = Tool.make("list_investor_operations", {
+  description: "List every Investor API operation and the parameters accepted by the call tools.",
+  failure: SpikoMcpError,
+  failureMode: "return",
+  parameters: Schema.Struct({}),
+  success: Schema.Array(InvestorOperation),
+})
+  .annotate(Tool.Readonly, true)
+  .annotate(Tool.Destructive, false)
+  .annotate(Tool.Idempotent, true)
+  .annotate(Tool.OpenWorld, false)
+
+export const CallInvestorReadOperation = Tool.make("call_investor_read_operation", {
+  dependencies: [InvestorApi],
+  description:
+    "Call any read-only Investor API operation. Use list_investor_operations to inspect its method, path, and parameters.",
+  failure: SpikoMcpError,
+  failureMode: "return",
+  parameters: Schema.Struct({
+    operation: Schema.Literals(InvestorReadOperationNames),
+    parameters: Schema.optionalKey(Parameters),
+    path: Schema.optionalKey(PathParameters),
+  }),
+  success: InvestorResult,
+})
+  .annotate(Tool.Readonly, true)
+  .annotate(Tool.Destructive, false)
+  .annotate(Tool.Idempotent, true)
+  .annotate(Tool.OpenWorld, true)
+
+export const CallInvestorMutatingOperation = Tool.make("call_investor_mutating_operation", {
+  dependencies: [InvestorApi],
+  description:
+    "Call an Investor API operation that changes state. Review the operation and payload before confirming.",
+  failure: SpikoMcpError,
+  failureMode: "return",
+  parameters: Schema.Struct({
+    confirm: Schema.Literal(true),
+    operation: Schema.Literals(InvestorMutatingOperationNames),
+    parameters: Schema.optionalKey(Parameters),
+    path: Schema.optionalKey(PathParameters),
+    payload: Schema.optionalKey(Schema.Json),
+  }),
+  success: InvestorResult,
+})
+  .annotate(Tool.Readonly, false)
+  .annotate(Tool.Destructive, true)
+  .annotate(Tool.Idempotent, false)
+  .annotate(Tool.OpenWorld, true)
+
 export const SpikoToolkit = Toolkit.make(
   ListFunds,
   GetFund,
@@ -170,6 +256,9 @@ export const SpikoToolkit = Toolkit.make(
   GetFundAssets,
   GetExchangeRate,
   GetLatestExchangeRate,
+  ListInvestorOperations,
+  CallInvestorReadOperation,
+  CallInvestorMutatingOperation,
 )
 
 const segment = encodeURIComponent
@@ -212,6 +301,108 @@ const call = <A, E>(
         }),
     ),
   )
+
+type InvestorOperationName = keyof typeof InvestorOperationCatalog
+
+const investorSourceUrl = (
+  client: InvestorApiClient,
+  metadata: InvestorOperationMetadata,
+  pathParameters: Readonly<Record<string, string>>,
+  parameters: Readonly<Record<string, Schema.Json>>,
+): string => {
+  const path = metadata.parameters
+    .filter((parameter) => parameter.in === "path")
+    .reduce(
+      (value, parameter) =>
+        value.replace(
+          `{${parameter.name}}`,
+          encodeURIComponent(pathParameters[parameter.name] ?? ""),
+        ),
+      metadata.path,
+    )
+  const url = new URL(path.replace(/^\/+/, ""), `${client.baseUrl.replace(/\/+$/, "")}/`)
+
+  for (const parameter of metadata.parameters.filter((parameter) => parameter.in === "query")) {
+    const value = parameters[parameter.name]
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        url.searchParams.append(
+          parameter.name,
+          typeof item === "string" ? item : JSON.stringify(item),
+        )
+      }
+    } else if (value !== undefined) {
+      url.searchParams.set(
+        parameter.name,
+        typeof value === "string" ? value : JSON.stringify(value),
+      )
+    }
+  }
+
+  return url.toString()
+}
+
+const callInvestor = Effect.fn("Mcp.callInvestor")(function* (
+  operationName: InvestorOperationName,
+  pathParameters: Readonly<Record<string, string>> = {},
+  parameters: Readonly<Record<string, Schema.Json>> = {},
+  payload?: Schema.Json,
+) {
+  const api = yield* InvestorApi
+  const metadata: InvestorOperationMetadata = InvestorOperationCatalog[operationName]
+  const args: Array<unknown> = []
+
+  for (const parameter of metadata.parameters) {
+    const value =
+      parameter.in === "path" ? pathParameters[parameter.name] : parameters[parameter.name]
+    if (parameter.required && value === undefined) {
+      return yield* new SpikoMcpError({
+        message: `Missing required ${parameter.in} parameter "${parameter.name}" for ${operationName}`,
+      })
+    }
+    if (parameter.in === "path") {
+      args.push(value)
+    }
+  }
+
+  if (metadata.requestBody !== undefined && payload === undefined) {
+    return yield* new SpikoMcpError({
+      message: `Missing required payload for ${operationName}`,
+    })
+  }
+
+  const options: { params?: Readonly<Record<string, Schema.Json>>; payload?: Schema.Json } = {}
+  if (metadata.parameters.some((parameter) => parameter.in !== "path")) {
+    options.params = parameters
+  }
+  if (payload !== undefined) {
+    options.payload = payload
+  }
+  args.push(options)
+
+  const method: unknown = api[operationName]
+  if (!Predicate.isFunction(method)) {
+    return yield* new SpikoMcpError({
+      message: `The Investor API client does not expose "${operationName}". Regenerate the clients.`,
+    })
+  }
+
+  const result: unknown = method(...args)
+  if (!Effect.isEffect(result)) {
+    return yield* new SpikoMcpError({
+      message: `The Investor API operation "${operationName}" did not return an Effect.`,
+    })
+  }
+
+  const data = yield* result.pipe(
+    Effect.mapError((cause) => new SpikoMcpError({ message: String(cause) })),
+  )
+  return {
+    data,
+    operation: operationName,
+    source: investorSourceUrl(api, metadata, pathParameters, parameters),
+  }
+})
 
 export const SpikoHandlers = SpikoToolkit.toLayer({
   list_funds: () => call("funds/", {}, (api) => api.GetAllFunds(undefined)),
@@ -296,4 +487,22 @@ export const SpikoHandlers = SpikoToolkit.toLayer({
           },
         }),
     ),
+  list_investor_operations: () =>
+    Effect.succeed(
+      Object.entries(InvestorOperationCatalog).map(([name, operation]) => {
+        const metadata: InvestorOperationMetadata = operation
+        return {
+          description: metadata.description,
+          method: metadata.method,
+          name,
+          parameters: metadata.parameters,
+          path: metadata.path,
+          requiresPayload: metadata.requestBody !== undefined,
+        }
+      }),
+    ),
+  call_investor_read_operation: ({ operation, parameters, path }) =>
+    callInvestor(operation, path, parameters),
+  call_investor_mutating_operation: ({ operation, parameters, path, payload }) =>
+    callInvestor(operation, path, parameters, payload),
 })

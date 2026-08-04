@@ -1,19 +1,71 @@
 import * as DistributorApi from "@spiko/distributor-api-client"
 import * as InvestorApi from "@spiko/investor-api-client"
 import * as PublicApi from "@spiko/public-api-client"
-import { Console, Effect, Option, Predicate, Record, Schema } from "effect"
-import { Argument, CliError, Command, Flag } from "effect/unstable/cli"
+import {
+  Config,
+  ConfigProvider,
+  Console,
+  Effect,
+  Option,
+  Predicate,
+  Record,
+  Redacted,
+  Schema,
+} from "effect"
+import { Argument, CliError, Command, Flag, Prompt } from "effect/unstable/cli"
 import type { ApiName, OperationMetadata, OperationParameter } from "./generated/operations.ts"
 import { ApiNames, OperationCatalog } from "./generated/operations.ts"
 import { CliInputError, prepareInvocation } from "./core.ts"
+import { CredentialStore } from "./credentials.ts"
 import { routeOperations } from "./routes.ts"
+
+const investorApiKeyName = "SPIKO_INVESTOR_API_KEY"
+
+export const makeInvestorClient = Effect.gen(function* () {
+  const environmentApiKey = yield* Config.option(Config.redacted(investorApiKeyName))
+  const accessToken = yield* Config.option(Config.redacted("SPIKO_INVESTOR_ACCESS_TOKEN"))
+  const clientId = yield* Config.option(Config.redacted("SPIKO_INVESTOR_CLIENT_ID"))
+  const clientSecret = yield* Config.option(Config.redacted("SPIKO_INVESTOR_CLIENT_SECRET"))
+  if (
+    Option.isSome(environmentApiKey) ||
+    Option.isSome(accessToken) ||
+    (Option.isSome(clientId) && Option.isSome(clientSecret))
+  ) {
+    return yield* InvestorApi.makeFromConfig
+  }
+
+  const credentialStore = yield* CredentialStore
+  const currentProvider = yield* ConfigProvider.ConfigProvider
+  const storedApiKeyProvider = ConfigProvider.make((path) => {
+    if (path.length !== 1 || path[0] !== investorApiKeyName) {
+      return Effect.succeed(undefined)
+    }
+
+    return credentialStore.getInvestorApiKey.pipe(
+      Effect.map(
+        Option.match({
+          onNone: () => undefined,
+          onSome: (apiKey) => ConfigProvider.makeValue(Redacted.value(apiKey)),
+        }),
+      ),
+      Effect.mapError((cause) => new ConfigProvider.SourceError({ cause, message: cause.message })),
+    )
+  })
+
+  return yield* InvestorApi.makeFromConfig.pipe(
+    Effect.provideService(
+      ConfigProvider.ConfigProvider,
+      ConfigProvider.orElse(currentProvider, storedApiKeyProvider),
+    ),
+  )
+})
 
 const getClient = (api: ApiName) => {
   switch (api) {
     case "public":
       return PublicApi.makeFromConfig
     case "investor":
-      return InvestorApi.makeFromConfig
+      return makeInvestorClient
     case "distributor":
       return DistributorApi.makeFromConfig
   }
@@ -99,6 +151,78 @@ const handleCliErrors = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
       CliError.isCliError(cause) ? cause : new CliError.UserError({ cause }),
     ),
   )
+
+const login = Command.make("login", {}, () =>
+  handleCliErrors(
+    Effect.gen(function* () {
+      const apiKey = yield* Prompt.run(Prompt.password({ message: "Investor API key" }))
+      if (Redacted.value(apiKey).length === 0) {
+        return yield* new CliInputError({ message: "The Investor API key cannot be empty." })
+      }
+
+      const credentialStore = yield* CredentialStore
+      yield* credentialStore.setInvestorApiKey(apiKey)
+      yield* Console.log(JSON.stringify({ authenticated: true, source: "keychain" }, null, 2))
+    }),
+  ),
+).pipe(Command.withDescription("Store an Investor API key in the operating system keychain"))
+
+const status = Command.make("status", {}, () =>
+  handleCliErrors(
+    Effect.gen(function* () {
+      const environmentApiKey = yield* Config.option(Config.redacted(investorApiKeyName))
+      if (Option.isSome(environmentApiKey)) {
+        return yield* Console.log(
+          JSON.stringify({ authenticated: true, source: "environment" }, null, 2),
+        )
+      }
+
+      const accessToken = yield* Config.option(Config.redacted("SPIKO_INVESTOR_ACCESS_TOKEN"))
+      if (Option.isSome(accessToken)) {
+        return yield* Console.log(
+          JSON.stringify({ authenticated: true, source: "legacy-access-token" }, null, 2),
+        )
+      }
+
+      const clientId = yield* Config.option(Config.redacted("SPIKO_INVESTOR_CLIENT_ID"))
+      const clientSecret = yield* Config.option(Config.redacted("SPIKO_INVESTOR_CLIENT_SECRET"))
+      if (Option.isSome(clientId) && Option.isSome(clientSecret)) {
+        return yield* Console.log(
+          JSON.stringify({ authenticated: true, source: "legacy-basic-auth" }, null, 2),
+        )
+      }
+
+      const credentialStore = yield* CredentialStore
+      const storedApiKey = yield* credentialStore.getInvestorApiKey
+      const authenticated = Option.isSome(storedApiKey)
+      yield* Console.log(
+        JSON.stringify(
+          {
+            authenticated,
+            source: authenticated ? "keychain" : null,
+          },
+          null,
+          2,
+        ),
+      )
+    }),
+  ),
+).pipe(Command.withDescription("Show the active Investor API credential source"))
+
+const logout = Command.make("logout", {}, () =>
+  handleCliErrors(
+    Effect.gen(function* () {
+      const credentialStore = yield* CredentialStore
+      const removed = yield* credentialStore.removeInvestorApiKey
+      yield* Console.log(JSON.stringify({ removed }, null, 2))
+    }),
+  ),
+).pipe(Command.withDescription("Remove the stored Investor API key from the keychain"))
+
+const authCommand = Command.make("auth").pipe(
+  Command.withSubcommands([login, status, logout]),
+  Command.withDescription("Manage persistent Investor API authentication"),
+)
 
 const confirm = Flag.boolean("confirm").pipe(
   Flag.withDescription("Explicitly approve a non-read-only API operation"),
@@ -207,9 +331,9 @@ const callCommand = Command.make("call").pipe(
 )
 
 export const rootCommand = Command.make("spiko").pipe(
-  Command.withSubcommands([operationsCommand, callCommand]),
+  Command.withSubcommands([authCommand, operationsCommand, callCommand]),
   Command.withDescription(
-    "Interact with Spiko's generated Effect HTTP clients. Credentials are read from the environment.",
+    "Interact with Spiko's generated Effect HTTP clients. Credentials are read from the environment or operating system keychain.",
   ),
 )
 

@@ -1,7 +1,7 @@
 {
   "name": "spiko-mcp",
   "version": "0.2.0",
-  "description": "Effect-native Model Context Protocol server for Spiko's Public API.",
+  "description": "Effect-native Model Context Protocol server for Spiko's Public and Investor APIs.",
   "keywords": [
     "api",
     "finance",
@@ -36,6 +36,7 @@
   },
   "devDependencies": {
     "@effect/platform-node": "catalog:",
+    "@spiko/investor-api-client": "workspace:*",
     "@spiko/public-api-client": "workspace:*",
     "effect": "catalog:",
     "rolldown": "catalog:",

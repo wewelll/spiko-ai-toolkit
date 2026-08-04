@@ -8,7 +8,7 @@ This PNPM workspace contains:
 
 - Generated clients for the Public, Investor, and Distributor APIs
 - A `spiko` command-line client
-- A read-only MCP server, currently exposing the Public API
+- An MCP server exposing the Public API and all Investor API operations
 
 ## Installation
 
@@ -26,11 +26,30 @@ Configure the MCP server in your MCP client with:
   "mcpServers": {
     "spiko": {
       "command": "npx",
-      "args": ["-y", "spiko-mcp"]
+      "args": ["-y", "spiko-mcp"],
+      "env": {
+        "SPIKO_INVESTOR_API_KEY": "your-api-key"
+      }
     }
   }
 }
 ```
+
+Persist the Investor API key in your operating system keychain:
+
+```sh
+spiko auth login
+spiko auth status
+```
+
+For CI or temporary overrides, provide the same key through the environment:
+
+```sh
+export SPIKO_INVESTOR_API_KEY=your-api-key
+spiko call investor investors
+```
+
+The key is sent as an `Authorization: Bearer` token. Environment credentials take precedence over the stored key. Run `spiko auth logout` to remove the stored key.
 
 ## Development
 

@@ -1,11 +1,13 @@
 import { Layer, Logger } from "effect"
 import { NodeHttpClient, NodeStdio } from "@effect/platform-node"
+import { layer as InvestorApiLayer } from "@spiko/investor-api-client"
 import { layer as PublicApiLayer } from "@spiko/public-api-client"
 import { McpServer } from "effect/unstable/ai"
 import { SpikoHandlers, SpikoToolkit } from "./tools.ts"
 
 const ToolLayer = McpServer.toolkit(SpikoToolkit).pipe(
   Layer.provide(SpikoHandlers),
+  Layer.provide(InvestorApiLayer),
   Layer.provide(PublicApiLayer),
   Layer.provide(NodeHttpClient.layerUndici),
 )

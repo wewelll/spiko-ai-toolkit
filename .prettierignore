@@ -1,3 +1,4 @@
 apps/cli/src/generated/
+apps/mcp-server/src/generated/
 openapi/
 packages/*/src/generated.ts
