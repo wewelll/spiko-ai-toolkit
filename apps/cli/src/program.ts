@@ -42,7 +42,13 @@ const invokeClient = Effect.fn("Cli.invokeClient")(function* (
     })
   }
 
-  return yield* result
+  // Dynamic generated methods are untyped here; translate their failure before it escapes.
+  // oxlint-disable-next-line effecttsgo/any-unknown-in-error-context
+  return yield* result.pipe(
+    Effect.mapError((cause) =>
+      CliError.isCliError(cause) ? cause : new CliError.UserError({ cause }),
+    ),
+  )
 })
 
 const makeParameterFlag = (parameter: OperationParameter): Flag.Flag<Option.Option<string>> => {

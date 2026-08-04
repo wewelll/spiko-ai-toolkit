@@ -6,7 +6,7 @@ catalog:
   "@effect/platform-node": 4.0.0-beta.102
   "@types/node": 24.13.3
   effect: 4.0.0-beta.102
-  rolldown: 1.2.1
+  rolldown: 1.2.2
   typescript: 7.0.2
   vitest: 4.1.10
 
@@ -18,3 +18,11 @@ minimumReleaseAgeExclude:
   - "@effect/platform-node-shared@4.0.0-beta.102"
   - "@effect/platform-node@4.0.0-beta.102"
   - effect@4.0.0-beta.102
+  - "@effect/tsgo-darwin-arm64@0.31.0"
+  - "@effect/tsgo-darwin-x64@0.31.0"
+  - "@effect/tsgo-linux-arm64@0.31.0"
+  - "@effect/tsgo-linux-arm@0.31.0"
+  - "@effect/tsgo-linux-x64@0.31.0"
+  - "@effect/tsgo-win32-arm64@0.31.0"
+  - "@effect/tsgo-win32-x64@0.31.0"
+  - "@effect/tsgo@0.31.0"
