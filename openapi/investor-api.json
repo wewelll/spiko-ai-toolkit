@@ -473,6 +473,7 @@
                     "investorId",
                     "blockchainAccount",
                     "type",
+                    "walletId",
                     "createdAt",
                     "name"
                   ],
@@ -693,6 +694,11 @@
                         "external"
                       ]
                     },
+                    "walletId": {
+                      "type": "string",
+                      "description": "The wallet backing this account. For external accounts, this walletId can also be used as a stablecoin-transfer withdrawal destination.",
+                      "format": "uuid"
+                    },
                     "createdAt": {
                       "anyOf": [
                         {
@@ -845,6 +851,7 @@
                       "investorId",
                       "blockchainAccount",
                       "type",
+                      "walletId",
                       "createdAt",
                       "name"
                     ],
@@ -1065,6 +1072,11 @@
                           "external"
                         ]
                       },
+                      "walletId": {
+                        "type": "string",
+                        "description": "The wallet backing this account. For external accounts, this walletId can also be used as a stablecoin-transfer withdrawal destination.",
+                        "format": "uuid"
+                      },
                       "createdAt": {
                         "anyOf": [
                           {
@@ -1168,6 +1180,7 @@
                     "investorId",
                     "blockchainAccount",
                     "type",
+                    "walletId",
                     "createdAt",
                     "name"
                   ],
@@ -1388,6 +1401,11 @@
                         "external"
                       ]
                     },
+                    "walletId": {
+                      "type": "string",
+                      "description": "The wallet backing this account. For external accounts, this walletId can also be used as a stablecoin-transfer withdrawal destination.",
+                      "format": "uuid"
+                    },
                     "createdAt": {
                       "anyOf": [
                         {
@@ -1509,7 +1527,8 @@
                   "type": "object",
                   "required": [
                     "shareClassCurrency",
-                    "accounts"
+                    "accounts",
+                    "stablecoinDepositAccounts"
                   ],
                   "properties": {
                     "shareClassCurrency": {
@@ -1598,6 +1617,66 @@
                         },
                         "additionalProperties": false
                       }
+                    },
+                    "stablecoinDepositAccounts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "network",
+                          "address",
+                          "stablecoins"
+                        ],
+                        "properties": {
+                          "network": {
+                            "$ref": "#/components/schemas/Network"
+                          },
+                          "address": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "title": "Ethereum address",
+                                "description": "a valid Ethereum address, starting with 0x and followed by 40 hexadecimal characters e.g. \"0xb794f5ea0ba39494ce839613fffba74279579268\""
+                              },
+                              {
+                                "title": "StarknetAddress",
+                                "type": "string",
+                                "description": "a valid Starknet address, starting with 0x and followed by 64 hexadecimal characters e.g. \"0x0000000000000000000000000000000000000000000000000000000000000000\""
+                              },
+                              {
+                                "anyOf": [
+                                  {
+                                    "title": "StellarAccountAddress",
+                                    "type": "string",
+                                    "description": "a valid Stellar account address, starting with G and followed by 55 hexadecimal characters e.g. \"GBYIQXBKEB655EB3WTRITS6RR5GXEP6SQRBLPREZHNFYKT7WBMTMPR3H\""
+                                  },
+                                  {
+                                    "title": "StellarContractAddress",
+                                    "type": "string",
+                                    "description": "a valid Stellar contract address, starting with C and followed by 55 hexadecimal characters e.g. \"CCAANR7HZNOXYZD7SXS2WQLV5BAOXSRZ7V4O43IANSB355QN2RNG7WVC\""
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "title": "Solana address",
+                                "description": "a valid Solana address, consisting of 32 to 44 base58 characters"
+                              }
+                            ]
+                          },
+                          "stablecoins": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "USDC",
+                                "EURC"
+                              ]
+                            }
+                          }
+                        },
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "additionalProperties": false
@@ -1639,7 +1718,7 @@
             "description": "NotFound"
           }
         },
-        "description": "\n**Retrieve virtual IBAN deposit instructions for a given account, share class, and subscription currency.**\n\nReturns a list of virtual bank accounts, each with its supported payment rails. An empty list means no virtual bank account has been provisioned (feature not available).\n\nEach entry includes payment informations and supported rails:\n- `SCT` / `SCT Instant` - SEPA Credit Transfer (EUR)\n- `Faster Payments` / `CHAPS` / `BACS` - UK local transfers (GBP); the `accountDetails` field then contains `sortCode` and `accountNumber`\n- `SWIFT` - international wire\n          ",
+        "description": "\n**Retrieve deposit instructions for a given account, share class, and subscription currency.**\n\nReturns a list of virtual bank accounts, each with its supported payment rails. An empty list means no virtual bank account has been provisioned (feature not available).\n\nEach entry includes payment informations and supported rails:\n- `SCT` / `SCT Instant` - SEPA Credit Transfer (EUR)\n- `Faster Payments` / `CHAPS` / `BACS` - UK local transfers (GBP); the `accountDetails` field then contains `sortCode` and `accountNumber`\n- `SWIFT` - international wire\n\nThe response also lists stablecoin deposit accounts under `stablecoinDepositAccounts`: one deposit address per supported network, provisioned on demand the first time instructions are requested. Each address accepts every stablecoin listed in its `stablecoins` field (independent of `subscriptionCurrency`); sending a supported stablecoin to it automatically creates and funds a subscription. An empty list means stablecoin deposits are not available for this account and share class (the feature requires an organization, or an individual with a tax identification number on file, on supported share classes).\n          ",
         "summary": "Get deposit instructions"
       }
     },
@@ -3517,7 +3596,7 @@
             }
           }
         },
-        "description": "\nCreate a new withdrawal order for an investor and return the order info.\n\n- The `quantity` field supports three modes:\n  - `{\"mode\":\"amount\",\"amount\":{\"value\":\"1000\",\"currency\":\"EUR\"}}` - withdraw a specific fiat amount\n  - `{\"mode\":\"shares\",\"shares\":\"10.5\"}` - withdraw a specific number of shares\n  - `{\"mode\":\"total\"}` - withdraw all shares (full withdrawal)\n",
+        "description": "\nCreate a new withdrawal order for an investor and return the order info.\n\n- The `quantity` field supports three modes:\n  - `{\"mode\":\"amount\",\"amount\":{\"value\":\"1000\",\"currency\":\"EUR\"}}` - withdraw a specific fiat amount\n  - `{\"mode\":\"shares\",\"shares\":\"10.5\"}` - withdraw a specific number of shares\n  - `{\"mode\":\"total\"}` - withdraw all shares (full withdrawal)\n\n- The `destination` field supports three types:\n  - `{\"type\":\"bank-transfer\",\"bankAccountId\":\"<uuid>\"}` - pay out to a registered bank account. Settles on the standard settlement cycle.\n  - `{\"type\":\"instant-bank-transfer\",\"bankAccountId\":\"<uuid>\"}` - **instant withdrawal** to a registered bank account. Funds are received the same day, without waiting for the standard settlement cycle. Only available from the `EUTBL` and `eurSAFO` share classes.\n  - `{\"type\":\"stablecoin-transfer\",\"walletId\":\"<uuid>\"}` - pay out in stablecoin to one of the investor's external wallets; the `walletId` is the external account's wallet id. Only available to organizations, on supported share classes.\n",
         "summary": "Create a new withdrawal order",
         "requestBody": {
           "content": {
@@ -10551,9 +10630,15 @@
           "GBP",
           "CHF",
           "JPY",
-          "SGD"
+          "SGD",
+          "SEK",
+          "NOK",
+          "DKK",
+          "PLN",
+          "HUF",
+          "CZK"
         ],
-        "description": "a currency code among \"EUR\", \"USD\", \"GBP\", \"CHF\", \"JPY\", \"SGD\"",
+        "description": "a currency code among \"EUR\", \"USD\", \"GBP\", \"CHF\", \"JPY\", \"SGD\", \"SEK\", \"NOK\", \"DKK\", \"PLN\", \"HUF\", \"CZK\"",
         "title": "Currency code"
       },
       "Network": {
@@ -10680,7 +10765,7 @@
               "NewWalletSignatureNotValid",
               "CurrencyNotSupported",
               "StablecoinNotSupported",
-              "AutopilotSynchronizedToBroken",
+              "SpikoAgentSynchronizedToBroken",
               "IncomingBankTransferNotFound",
               "IncomingBankTransferNotReceived",
               "IncomingBankTransferAlreadyHandled",
@@ -10906,7 +10991,14 @@
           "eurSAFO",
           "eurSAFOd",
           "gbpSAFO",
-          "chfSAFO"
+          "gbpSAFOd",
+          "chfSAFO",
+          "sekSAFO",
+          "nokSAFO",
+          "dkkSAFO",
+          "plnSAFO",
+          "hufSAFO",
+          "czkSAFO"
         ],
         "title": "ShareClassSymbol"
       },
