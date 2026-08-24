@@ -10,6 +10,7 @@ import * as String from "effect/String"
 import { Command, Flag } from "effect/unstable/cli"
 import * as HttpClient from "effect/unstable/http/HttpClient"
 import type { OpenAPISpec, OpenAPISpecMethodName } from "effect/unstable/httpapi/OpenApi"
+import { generateCliFiles } from "./generate-cli.ts"
 
 const apis = [
   {
@@ -191,6 +192,20 @@ const generate = Command.make("generate-clients", { fetch }, ({ fetch }) =>
     yield* fs.makeDirectory("apps/cli/src/generated", { recursive: true })
     yield* fs.writeFileString(catalogFile, generateCatalog(documents))
     yield* Console.log(`Generated ${catalogFile}`)
+
+    const cliFiles = generateCliFiles(
+      documents.map(([definition, document]) => ({
+        document,
+        family: definition.id,
+      })),
+    )
+    for (const file of cliFiles) {
+      yield* fs.makeDirectory(file.path.slice(0, file.path.lastIndexOf("/")), {
+        recursive: true,
+      })
+      yield* fs.writeFileString(file.path, file.content)
+      yield* Console.log(`Generated ${file.path}`)
+    }
   }),
 )
 
