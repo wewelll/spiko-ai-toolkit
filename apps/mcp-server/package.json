@@ -1,6 +1,6 @@
 {
   "name": "spiko-mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Effect-native Model Context Protocol server for Spiko's Public API.",
   "keywords": [
     "api",
