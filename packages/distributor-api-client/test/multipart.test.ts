@@ -1,10 +1,24 @@
 import { Effect, Redacted } from "effect"
 import * as HttpClient from "effect/unstable/http/HttpClient"
+import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest"
 import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse"
 import { describe, expect, it } from "vitest"
 import { make } from "../src/index.ts"
 
-describe("generated Distributor multipart writer", () => {
+describe("Distributor client", () => {
+  it("adds the configured base URL and basic authentication", () => {
+    const unusedHttpClient = HttpClient.make(() => Effect.die("not executed"))
+    const client = make(unusedHttpClient, {
+      baseUrl: "https://distributor.example.test/v0",
+      clientId: Redacted.make("client-id"),
+      clientSecret: Redacted.make("client-secret"),
+    })
+    const request = Effect.runSync(client.httpClient.preprocess(HttpClientRequest.get("/funds/")))
+
+    expect(request.url).toBe("https://distributor.example.test/v0/funds/")
+    expect(request.headers.authorization).toBe("Basic Y2xpZW50LWlkOmNsaWVudC1zZWNyZXQ=")
+  })
+
   it("encodes typed form fields and binary files as FormData", async () => {
     let captured: FormData | undefined
     const httpClient = HttpClient.make((request) =>

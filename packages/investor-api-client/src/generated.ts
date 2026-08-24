@@ -758,6 +758,7 @@ export const make = (
     "accountingPositionsDownloadAccountStatement": (options) => HttpClientRequest.get(`/accounting-positions/account-statement`).pipe(
     HttpClientRequest.setUrlParams({ "investorId": options.params["investorId"] as any, "accountId": options.params["accountId"] as any, "shareClassSymbol": options.params["shareClassSymbol"] as any, "from": options.params["from"] as any, "to": options.params["to"] as any, "locale": options.params["locale"] as any, "showNumberOfShares": options.params["showNumberOfShares"] as any }),
     withResponse(options.config)(HttpClientResponse.matchStatus({
+      "2xx": (response) => Effect.map(response.arrayBuffer, (buffer) => new Uint8Array(buffer)),
       "400": decodeError("AccountingPositionsDownloadAccountStatement400", AccountingPositionsDownloadAccountStatement400),
       "401": decodeError("AccountingPositionsDownloadAccountStatement401", AccountingPositionsDownloadAccountStatement401),
       "403": () => Effect.void,
@@ -954,7 +955,7 @@ readonly "accountingPositionsGetAccountingPositionsHistory": <Config extends Ope
 *   - The account statement will be a pdf file.
 *   - If no accountId is provided, the account statement will be for the sum of all archived and active accounts of the investor.
 */
-readonly "accountingPositionsDownloadAccountStatement": <Config extends OperationConfig>(options: { readonly params: typeof AccountingPositionsDownloadAccountStatementParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<void, Config>, HttpClientError.HttpClientError | SchemaError | SpikoInvestorApiError<"AccountingPositionsDownloadAccountStatement400", typeof AccountingPositionsDownloadAccountStatement400.Type> | SpikoInvestorApiError<"AccountingPositionsDownloadAccountStatement401", typeof AccountingPositionsDownloadAccountStatement401.Type>>
+readonly "accountingPositionsDownloadAccountStatement": <Config extends OperationConfig>(options: { readonly params: typeof AccountingPositionsDownloadAccountStatementParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<Uint8Array, Config>, HttpClientError.HttpClientError | SchemaError | SpikoInvestorApiError<"AccountingPositionsDownloadAccountStatement400", typeof AccountingPositionsDownloadAccountStatement400.Type> | SpikoInvestorApiError<"AccountingPositionsDownloadAccountStatement401", typeof AccountingPositionsDownloadAccountStatement401.Type>>
   /**
 * Get all daily yields for a given account and share class between two dates
 */

@@ -7,6 +7,7 @@ import { Console, Effect, Layer, Redacted } from "effect"
 import * as HttpClient from "effect/unstable/http/HttpClient"
 import * as HttpClientError from "effect/unstable/http/HttpClientError"
 import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest"
+import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse"
 import { describe, expect, it } from "vitest"
 import { type DefinedOperation, makeCli } from "../src/cli.ts"
 import { InvestorOperations } from "../src/generated/investor.ts"
@@ -269,6 +270,43 @@ describe("generated Investor Operation Catalog", () => {
         { params: { investorId, status: ["pending", "executed"] } },
       ],
     ])
+  })
+
+  it("renders binary account statements as base64 JSON data", async () => {
+    const bytes = new Uint8Array([37, 80, 68, 70])
+    const httpClient = HttpClient.make((request) =>
+      Effect.succeed(HttpClientResponse.fromWeb(request, new Response(bytes, { status: 200 }))),
+    )
+    const layer = Layer.succeed(
+      Investor.InvestorApi,
+      Investor.make(httpClient, {
+        auth: { accessToken: Redacted.make("test"), type: "bearer" },
+        baseUrl: "https://investor.example.test",
+      }),
+    )
+
+    const result = await run(layer, [
+      "call",
+      "investor",
+      "accounting-positions",
+      "account-statement",
+      "--investor-id",
+      investorId,
+      "--share-class-symbol",
+      "EUTBL",
+      "--from",
+      "2025-01-01",
+      "--to",
+      "2025-01-31",
+    ])
+
+    expect(result.exitCode).toBe(0)
+    expect(result.stderr).toEqual([])
+    expect(JSON.parse(result.stdout[0] ?? "")).toEqual({
+      data: { encoding: "base64", value: "JVBERg==" },
+      ok: true,
+      operation: "accountingPositions.downloadAccountStatement",
+    })
   })
 
   it("documents JSON payload and independent mutation confirmation flags", async () => {

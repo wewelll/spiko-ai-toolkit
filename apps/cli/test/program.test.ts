@@ -167,6 +167,31 @@ describe("spiko command interface", () => {
     })
   })
 
+  it("returns a JSON failure envelope for internal defects", async () => {
+    const stdout: Array<string> = []
+    const stderr: Array<string> = []
+    const publicLayer = makePublicLayer(() => Effect.die("simulated defect"))
+    const cli = makeTestCli(publicLayer)
+
+    const exitCode = await Effect.runPromise(
+      cli
+        .run(["call", "public", "funds", "get", "--fund-id", fundId])
+        .pipe(
+          Effect.provide(NodeServices.layer),
+          Effect.provideService(Console.Console, makeTestConsole(stdout, stderr)),
+        ),
+    )
+
+    expect(exitCode).toBe(1)
+    expect(stdout).toEqual([])
+    expect(stderr).toHaveLength(1)
+    expect(JSON.parse(stderr[0] ?? "")).toMatchObject({
+      error: { code: "internal-failure", details: [], message: "Internal CLI failure." },
+      ok: false,
+      operation: "Get Fund",
+    })
+  })
+
   it("rejects invalid input before client invocation", async () => {
     const stdout: Array<string> = []
     const stderr: Array<string> = []

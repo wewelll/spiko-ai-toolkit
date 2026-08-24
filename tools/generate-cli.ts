@@ -10,6 +10,7 @@ import type {
 import { routeOperations } from "./cli-routes.ts"
 
 export interface CliSourceDocument {
+  readonly clientMethods: ReadonlySet<string>
   readonly document: OpenAPISpec
   readonly family: "distributor" | "investor" | "public"
 }
@@ -319,6 +320,7 @@ const renderInvocation = (
 }
 
 interface FamilyGeneration {
+  readonly clientMethods: ReadonlySet<string>
   readonly clientModule: string
   readonly clientTag: string
   readonly count: number
@@ -672,6 +674,14 @@ const renderFamily = (document: OpenAPISpec, generation: FamilyGeneration): stri
       `Duplicate ${String.capitalize(generation.family)} operationId(s): ${duplicateIds.map(({ id }) => id).join(", ")}`,
     )
   }
+  const missingMethods = operations
+    .map(({ operation }) => camelize(operation.operationId))
+    .filter((method) => !generation.clientMethods.has(method))
+  if (missingMethods.length > 0) {
+    throw new Error(
+      `Missing generated ${String.capitalize(generation.family)} client method(s): ${missingMethods.join(", ")}`,
+    )
+  }
 
   const routes = routeOperations(
     operations.map(({ method, operation, path }) => ({
@@ -727,6 +737,7 @@ export const generateCliFiles = (
   return [
     {
       content: renderFamily(publicDocument.document, {
+        clientMethods: publicDocument.clientMethods,
         clientModule: "Public",
         clientTag: "Public.PublicApi",
         count: 15,
@@ -736,6 +747,7 @@ export const generateCliFiles = (
     },
     {
       content: renderFamily(investorDocument.document, {
+        clientMethods: investorDocument.clientMethods,
         clientModule: "Investor",
         clientTag: "Investor.InvestorApi",
         count: 35,
@@ -745,6 +757,7 @@ export const generateCliFiles = (
     },
     {
       content: renderFamily(distributorDocument.document, {
+        clientMethods: distributorDocument.clientMethods,
         clientModule: "Distributor",
         clientTag: "Distributor.DistributorApi",
         count: 65,

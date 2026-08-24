@@ -87,7 +87,7 @@ export interface DefinedOperation<
     string,
     CommandInput,
     {},
-    OperationFailure | OperationInputFailure,
+    OperationFailure | OperationInputFailure | OperationInternalFailure,
     InputRequirements | RemoteRequirements
   >
   readonly definition: OperationDefinition & { readonly family: Family }
@@ -95,7 +95,7 @@ export interface DefinedOperation<
     layer: Layer.Layer<RemoteRequirements, LayerError, LayerRequirements>,
   ) => ProvidedOperation<
     CommandInput,
-    OperationFailure | OperationInputFailure,
+    OperationFailure | OperationInputFailure | OperationInternalFailure,
     InputRequirements | LayerRequirements
   >
 }
@@ -104,6 +104,14 @@ class OperationFailure extends Schema.TaggedError<OperationFailure>()("Operation
   cause: Schema.Defect(),
   operation: Schema.String,
 }) {}
+
+class OperationInternalFailure extends Schema.TaggedError<OperationInternalFailure>()(
+  "OperationInternalFailure",
+  {
+    cause: Schema.Defect(),
+    operation: Schema.String,
+  },
+) {}
 
 class OperationInputFailure extends Schema.TaggedError<OperationInputFailure>()(
   "OperationInputFailure",
@@ -117,7 +125,10 @@ const renderSuccess = (operation: string, data: unknown) =>
   Console.log(
     JSON.stringify(
       {
-        data: data ?? null,
+        data:
+          data instanceof Uint8Array
+            ? { encoding: "base64", value: Buffer.from(data).toString("base64") }
+            : (data ?? null),
         ok: true,
         operation,
       },
@@ -153,6 +164,22 @@ export const defineOperation = <
   const makeCommand = <InvocationError, InvocationRequirements>(
     invoke: (input: Prepared) => Effect.Effect<unknown, InvocationError, InvocationRequirements>,
   ) => {
+    const invocationFailure = (
+      cause: Cause.Cause<OperationFailure>,
+    ): Effect.Effect<never, OperationFailure | OperationInternalFailure> => {
+      if (Cause.hasInterruptsOnly(cause)) {
+        return Effect.failCause(cause)
+      }
+      const failure = Cause.squash(cause)
+      return failure instanceof OperationFailure
+        ? Effect.fail(failure)
+        : Effect.fail(
+            new OperationInternalFailure({
+              cause: failure,
+              operation: options.definition.operationId,
+            }),
+          )
+    }
     const execute = (input: Command.Command.Config.Infer<Config>) =>
       Effect.gen(function* () {
         if (options.definition.safety === "mutation" && !options.confirmed(input)) {
@@ -185,6 +212,7 @@ export const defineOperation = <
                 operation: options.definition.operationId,
               }),
           ),
+          Effect.catchCause(invocationFailure),
         )
         yield* renderSuccess(options.definition.operationId, data)
       })
@@ -252,12 +280,20 @@ const makeOperationsCommand = (definitions: ReadonlyArray<OperationDefinition>) 
   )
 }
 
-const failureCode = (cause: unknown): "invalid-command" | "invalid-input" | "remote-failure" => {
+const failureCode = (
+  cause: unknown,
+): "internal-failure" | "invalid-command" | "invalid-input" | "remote-failure" => {
   if (cause instanceof OperationInputFailure) {
     return "invalid-input"
   }
-  if (cause instanceof OperationFailure || !CliError.isCliError(cause)) {
+  if (cause instanceof OperationInternalFailure) {
+    return "internal-failure"
+  }
+  if (cause instanceof OperationFailure) {
     return "remote-failure"
+  }
+  if (!CliError.isCliError(cause)) {
+    return "internal-failure"
   }
   if (cause._tag !== "ShowHelp") {
     return cause._tag === "UserError" ? "remote-failure" : "invalid-input"
@@ -268,6 +304,9 @@ const failureCode = (cause: unknown): "invalid-command" | "invalid-input" | "rem
 }
 
 const failureMessage = (cause: unknown): string => {
+  if (cause instanceof OperationInternalFailure) {
+    return "Internal CLI failure."
+  }
   if (cause instanceof OperationFailure || cause instanceof OperationInputFailure) {
     return failureMessage(cause.cause)
   }
@@ -283,7 +322,11 @@ const operationForFailure = (
   cause: unknown,
   definitions: ReadonlyArray<OperationDefinition>,
 ): string => {
-  if (cause instanceof OperationFailure || cause instanceof OperationInputFailure) {
+  if (
+    cause instanceof OperationFailure ||
+    cause instanceof OperationInputFailure ||
+    cause instanceof OperationInternalFailure
+  ) {
     return cause.operation
   }
   if (!CliError.isCliError(cause) || cause._tag !== "ShowHelp") {
@@ -324,7 +367,7 @@ const renderFailure = (
       2,
     ),
   )
-  return code === "remote-failure" ? 1 : 2
+  return code === "remote-failure" || code === "internal-failure" ? 1 : 2
 }
 
 const makeFamilyCommand = <Input, E, R>(
@@ -468,11 +511,18 @@ export const makeCli = <
           version,
         })(commandArgs).pipe(
           Effect.provideService(Console.Console, bufferedConsole),
-          Effect.matchEffect({
-            onFailure: (cause) =>
-              CliError.isCliError(cause) && cause._tag === "ShowHelp" && cause.errors.length === 0
+          Effect.matchCauseEffect({
+            onFailure: (cause) => {
+              if (Cause.hasInterruptsOnly(cause)) {
+                return Effect.failCause(cause)
+              }
+              const failure = Cause.squash(cause)
+              return CliError.isCliError(failure) &&
+                failure._tag === "ShowHelp" &&
+                failure.errors.length === 0
                 ? flush.pipe(Effect.as(0))
-                : Effect.sync(() => renderFailure(console, cause, definitions)),
+                : Effect.sync(() => renderFailure(console, failure, definitions))
+            },
             onSuccess: () => flush.pipe(Effect.as(0)),
           }),
         )

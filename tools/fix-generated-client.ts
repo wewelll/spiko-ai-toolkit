@@ -11,12 +11,8 @@ const replaceExactlyOnce = (source: string, expected: string, replacement: strin
   return source.replace(expected, replacement)
 }
 
-export const fixGeneratedClient = (family: GeneratedClientFamily, generated: string): string => {
-  if (family !== "distributor") {
-    return generated
-  }
-
-  return replaceExactlyOnce(
+const fixDistributor = (generated: string): string =>
+  replaceExactlyOnce(
     replaceExactlyOnce(
       generated,
       'export type PersistedFile = string\nexport const PersistedFile = Schema.String.annotate({ "format": "binary", "identifier": "PersistedFile" })',
@@ -25,4 +21,25 @@ export const fixGeneratedClient = (family: GeneratedClientFamily, generated: str
     "HttpClientRequest.bodyFormData(options.payload as any)",
     "HttpClientRequest.bodyFormDataRecord(options.payload)",
   )
+
+const fixInvestor = (generated: string): string =>
+  replaceExactlyOnce(
+    replaceExactlyOnce(
+      generated,
+      'withResponse(options.config)(HttpClientResponse.matchStatus({\n      "400": decodeError("AccountingPositionsDownloadAccountStatement400", AccountingPositionsDownloadAccountStatement400),',
+      'withResponse(options.config)(HttpClientResponse.matchStatus({\n      "2xx": (response) => Effect.map(response.arrayBuffer, (buffer) => new Uint8Array(buffer)),\n      "400": decodeError("AccountingPositionsDownloadAccountStatement400", AccountingPositionsDownloadAccountStatement400),',
+    ),
+    'readonly "accountingPositionsDownloadAccountStatement": <Config extends OperationConfig>(options: { readonly params: typeof AccountingPositionsDownloadAccountStatementParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<void, Config>,',
+    'readonly "accountingPositionsDownloadAccountStatement": <Config extends OperationConfig>(options: { readonly params: typeof AccountingPositionsDownloadAccountStatementParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<Uint8Array, Config>,',
+  )
+
+export const fixGeneratedClient = (family: GeneratedClientFamily, generated: string): string => {
+  switch (family) {
+    case "distributor":
+      return fixDistributor(generated)
+    case "investor":
+      return fixInvestor(generated)
+    case "public":
+      return generated
+  }
 }
