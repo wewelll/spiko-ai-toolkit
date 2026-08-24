@@ -301,31 +301,87 @@ const renderParamsObject = (bindings: ReadonlyArray<ParameterBinding>): string =
 const renderInvocation = (
   source: SourceOperation,
   bindings: ReadonlyArray<ParameterBinding>,
+  clientTag: string,
+  hasBody: boolean,
 ): string => {
   const methodName = camelize(source.operation.operationId)
   const paths = bindings.filter((binding) => binding.parameter.in === "path").map(optionalInput)
   const queries = bindings.filter((binding) => binding.parameter.in === "query")
-  const options = queries.length === 0 ? "undefined" : `{ params: ${renderParamsObject(queries)} }`
-  return `input => Effect.flatMap(PublicApi, (client) => client.${methodName}(${[
+  const optionFields = [
+    ...(queries.length === 0 ? [] : [`params: ${renderParamsObject(queries)}`]),
+    ...(hasBody ? ['payload: input["payload"]'] : []),
+  ]
+  const options = optionFields.length === 0 ? "undefined" : `{ ${optionFields.join(", ")} }`
+  return `input => Effect.flatMap(${clientTag}, (client) => client.${methodName}(${[
     ...paths,
     options,
   ].join(", ")}))`
 }
 
-const renderPublicOperation = (
+interface FamilyGeneration {
+  readonly clientModule: string
+  readonly clientTag: string
+  readonly count: number
+  readonly family: CliSourceDocument["family"]
+}
+
+interface RequestBodyBinding {
+  readonly mediaType: "application/json"
+  readonly schema: object
+  readonly schemaName: string
+}
+
+const requestBodyBinding = (
+  document: OpenAPISpec,
+  source: SourceOperation,
+): RequestBodyBinding | undefined => {
+  const requestBody = source.operation.requestBody
+  if (requestBody === undefined) {
+    return undefined
+  }
+  const contents = Object.entries(requestBody.content)
+  if (contents.length !== 1) {
+    throw new Error(
+      `${source.operation.operationId} ${source.method.toUpperCase()} ${source.path}: expected one request media type; found ${contents.length}`,
+    )
+  }
+  const content = contents[0]
+  if (content === undefined || content[0] !== "application/json") {
+    throw new Error(
+      `${source.operation.operationId} ${source.method.toUpperCase()} ${source.path}: unsupported request media type ${content?.[0] ?? "missing"}`,
+    )
+  }
+  return {
+    mediaType: content[0],
+    schema: content[1].schema,
+    schemaName: `${String.capitalize(camelize(source.operation.operationId))}RequestJson`,
+  }
+}
+
+const renderOperation = (
   document: OpenAPISpec,
   source: SourceOperation,
   route: { readonly action: string; readonly resource: string },
+  generation: FamilyGeneration,
 ): { readonly exportName: string; readonly source: string } => {
   const { method, operation, path } = source
-  if (operation.requestBody !== undefined) {
-    throw new Error(`${operation.operationId}: Public Operations must not declare request bodies`)
-  }
   const bindings = parameterBindings(document, source)
+  const body = requestBodyBinding(document, source)
+  const mutation = method !== "get" && method !== "head"
+  const syntheticFlags = [
+    ...(body === undefined ? [] : ["payload"]),
+    ...(mutation ? ["confirm"] : []),
+  ]
+  const duplicateSynthetic = syntheticFlags.find((flag) =>
+    bindings.some((binding) => binding.flag === flag),
+  )
+  if (duplicateSynthetic !== undefined) {
+    throw new Error(`${operation.operationId}: duplicate generated flag ${duplicateSynthetic}`)
+  }
   const definition = {
     action: route.action,
     description: operationDescription(operation),
-    family: "public",
+    family: generation.family,
     method: method.toUpperCase(),
     operationId: operation.operationId,
     parameters: bindings.map(({ flag, parameter }) => ({
@@ -340,37 +396,90 @@ const renderPublicOperation = (
       schema: bundleSchema(document, parameter.schema),
     })),
     path,
-    requestBody: null,
+    requestBody:
+      body === undefined
+        ? null
+        : {
+            kind: "json",
+            mediaType: body.mediaType,
+            required: true,
+            schema: bundleSchema(document, body.schema),
+          },
     resource: route.resource,
     responses: renderResponses(document, operation),
-    safety: "read",
+    safety: mutation ? "mutation" : "read",
   }
   const exportName = camelize(operation.operationId)
   const definitionSource = JSON.stringify(definition)
-  const parameters = bindings
-    .map(
+  const parameters = [
+    ...bindings.map(
       (binding) =>
         `    ${JSON.stringify(binding.configKey)}: ${renderFlag(binding).replaceAll("\n", "\n    ")},`,
-    )
-    .join("\n")
+    ),
+    ...(body === undefined
+      ? []
+      : [
+          `    "payload": Flag.string("payload").pipe(\n      Flag.withMetavar("FILE"),\n      Flag.withDescription("Required ${body.mediaType} request body file"),\n    ),`,
+        ]),
+    ...(mutation
+      ? [
+          '    "confirm": Flag.boolean("confirm").pipe(Flag.withDescription("Confirm this mutating Spiko Operation")),',
+        ]
+      : []),
+  ].join("\n")
+  const prepare =
+    body === undefined
+      ? "input => Effect.succeed(input)"
+      : `input => readJsonPayload(input["payload"], ${generation.clientModule}.${body.schemaName}).pipe(\n    Effect.map((payload) => ({ ...input, payload })),\n  )`
 
   return {
     exportName,
     source: `export const ${exportName} = defineOperation({
+  confirmed: ${mutation ? 'input => input["confirm"]' : "() => true"},
   definition: ${definitionSource},
   parameters: {
 ${parameters}
   },
-  invoke: ${renderInvocation(source, bindings)},
+  prepare: ${prepare},
+  invoke: ${renderInvocation(source, bindings, generation.clientTag, body !== undefined)},
 })`,
   }
 }
 
-const renderPublic = (document: OpenAPISpec): string => {
+const jsonPayloadHelpers = `
+const decodeJson = Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Json))
+
+const invalidPayload = (expected: string, value: string) =>
+  new CliError.InvalidValue({
+    expected,
+    kind: "flag",
+    option: "payload",
+    value,
+  })
+
+const readJsonPayload = <S extends Schema.Constraint>(file: string, schema: S) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem
+    const source = yield* fs.readFileString(file).pipe(
+      Effect.mapError(() => invalidPayload("a readable JSON payload file", file)),
+    )
+    const json = yield* decodeJson(source).pipe(
+      Effect.mapError(() => invalidPayload("valid JSON", file)),
+    )
+    const decoded = yield* Schema.decodeUnknownEffect(schema)(json).pipe(
+      Effect.mapError(() => invalidPayload("JSON matching the OpenAPI request schema", file)),
+    )
+    return yield* Schema.encodeEffect(schema)(decoded).pipe(
+      Effect.mapError(() => invalidPayload("an encodable OpenAPI request payload", file)),
+    )
+  })
+`
+
+const renderFamily = (document: OpenAPISpec, generation: FamilyGeneration): string => {
   const operations = collectOperations(document)
-  if (operations.length !== 15) {
+  if (operations.length !== generation.count) {
     throw new Error(
-      `The Public OpenAPI document must contain 15 Operations; found ${operations.length}`,
+      `The ${String.capitalize(generation.family)} OpenAPI document must contain ${generation.count} Operations; found ${operations.length}`,
     )
   }
   const operationIds = Map.groupBy(operations, ({ operation }) => operation.operationId)
@@ -379,7 +488,7 @@ const renderPublic = (document: OpenAPISpec): string => {
   )
   if (duplicateIds.length > 0) {
     throw new Error(
-      `Duplicate Public operationId(s): ${duplicateIds.map(({ id }) => id).join(", ")}`,
+      `Duplicate ${String.capitalize(generation.family)} operationId(s): ${duplicateIds.map(({ id }) => id).join(", ")}`,
     )
   }
 
@@ -396,18 +505,20 @@ const renderPublic = (document: OpenAPISpec): string => {
     if (route === undefined) {
       throw new Error(`Missing generated CLI route for ${source.operation.operationId}`)
     }
-    return renderPublicOperation(document, source, route)
+    return renderOperation(document, source, route, generation)
   })
+  const hasJsonBodies = operations.some((source) => source.operation.requestBody !== undefined)
+  const familyName = String.capitalize(generation.family)
   return `// This file is generated by tools/generate-clients.ts. Do not edit it by hand.
 
-import { PublicApi } from "@spiko/public-api-client"
-import { Effect, Option, Schema } from "effect"
-import { Flag } from "effect/unstable/cli"
+import * as ${generation.clientModule} from "@spiko/${generation.family}-api-client"
+import { Effect, ${hasJsonBodies ? "FileSystem, " : ""}Option, Schema } from "effect"
+import { ${hasJsonBodies ? "CliError, " : ""}Flag } from "effect/unstable/cli"
 import { defineOperation } from "../cli.ts"
-
+${hasJsonBodies ? jsonPayloadHelpers : ""}
 ${rendered.map(({ source }) => source).join("\n\n")}
 
-export const PublicOperations = [
+export const ${familyName}Operations = [
 ${rendered.map(({ exportName }) => `  ${exportName},`).join("\n")}
 ] as const
 `
@@ -417,14 +528,29 @@ export const generateCliFiles = (
   documents: ReadonlyArray<CliSourceDocument>,
 ): ReadonlyArray<GeneratedCliFile> => {
   const publicDocument = documents.find((source) => source.family === "public")
-  if (publicDocument === undefined) {
-    throw new Error("The Public OpenAPI document is required to generate the CLI")
+  const investorDocument = documents.find((source) => source.family === "investor")
+  if (publicDocument === undefined || investorDocument === undefined) {
+    throw new Error("The Public and Investor OpenAPI documents are required to generate the CLI")
   }
 
   return [
     {
-      content: renderPublic(publicDocument.document),
+      content: renderFamily(publicDocument.document, {
+        clientModule: "Public",
+        clientTag: "Public.PublicApi",
+        count: 15,
+        family: "public",
+      }),
       path: "apps/cli/src/generated/public.ts",
+    },
+    {
+      content: renderFamily(investorDocument.document, {
+        clientModule: "Investor",
+        clientTag: "Investor.InvestorApi",
+        count: 35,
+        family: "investor",
+      }),
+      path: "apps/cli/src/generated/investor.ts",
     },
   ]
 }

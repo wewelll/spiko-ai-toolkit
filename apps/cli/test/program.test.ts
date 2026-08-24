@@ -6,7 +6,7 @@ import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse"
 import { describe, expect, it } from "vitest"
 import { Command } from "effect/unstable/cli"
 import * as ChildProcessSpawner from "effect/unstable/process/ChildProcessSpawner"
-import { makeCli } from "../src/cli.ts"
+import { type DefinedOperation, makeCli } from "../src/cli.ts"
 import { GetFund, PublicOperations } from "../src/generated/public.ts"
 
 const makeTestConsole = (stdout: Array<string>, stderr: Array<string>): Console.Console =>
@@ -51,12 +51,23 @@ const PublicUnusedLayer = Layer.effect(
   Effect.die("Operation client layer must not be acquired"),
 )
 
+const NoDistributorOperations: ReadonlyArray<DefinedOperation<"distributor">> = []
+const NoInvestorOperations: ReadonlyArray<DefinedOperation<"investor">> = []
+
 const makeTestCli = <LayerError, LayerRequirements>(
   operationLayer: Layer.Layer<Public.PublicApi, LayerError, LayerRequirements>,
 ) =>
   makeCli({
-    operationLayer,
-    operations: PublicOperations,
+    operationLayers: {
+      distributor: Layer.empty,
+      investor: Layer.empty,
+      public: operationLayer,
+    },
+    operations: {
+      distributor: NoDistributorOperations,
+      investor: NoInvestorOperations,
+      public: PublicOperations,
+    },
     version: "test",
   })
 

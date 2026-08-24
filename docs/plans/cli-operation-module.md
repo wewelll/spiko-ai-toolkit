@@ -21,11 +21,11 @@ Load the repository's Effect skill before editing Effect workflows or tests. Eff
 The deep CLI module exposes two internal entry points:
 
 ```ts
-defineOperation({ definition, parameters, invoke })
-makeCli({ operationLayer, operations, version })
+defineOperation({ confirmed, definition, parameters, prepare, invoke })
+makeCli({ operationLayers, operations, version })
 ```
 
-`defineOperation` receives serializable discovery data, typed Effect CLI parameters, and a statically typed invocation closure. It closes over the exact parsed input and returns a defined operation without losing its Effect errors or requirements. `makeCli` assembles resource/action commands, Operation Catalog discovery, JSON rendering, and process-level error handling. It provides `operationLayer` only to invocation handlers, so list, describe, help, and input rejection do not acquire clients or credentials.
+`defineOperation` receives serializable discovery data, typed Effect CLI parameters, a confirmation projection, a local preparation closure, and a statically typed invocation closure. It closes over the exact parsed input and returns a defined operation without losing its Effect errors or requirements. `makeCli` assembles resource/action commands, Operation Catalog discovery, JSON rendering, and process-level error handling. Operations and client layers are keyed by family; each layer is provided only around that family's invocation closure. Confirmation and local preparation therefore run before client acquisition, while list, describe, help, and input rejection acquire no clients or credentials.
 
 Operation Definitions are generated under `apps/cli/src/generated/`. Routes are resolved during generation. Invocation closures use the existing Public, Investor, and Distributor context tags; production layers and focused test layers are the two adapters at the remote seam. Console, Terminal, Stdio, FileSystem, and Path use their existing Effect interfaces.
 

@@ -1,12 +1,23 @@
+import { layer as InvestorApiLayer } from "@spiko/investor-api-client"
 import { layer as PublicApiLayer } from "@spiko/public-api-client"
-import { Effect, Stdio } from "effect"
+import { Effect, Layer, Stdio } from "effect"
 import packageJson from "../package.json" with { type: "json" }
-import { makeCli } from "./cli.ts"
+import { type DefinedOperation, makeCli } from "./cli.ts"
+import { InvestorOperations } from "./generated/investor.ts"
 import { PublicOperations } from "./generated/public.ts"
 
+const NoDistributorOperations: ReadonlyArray<DefinedOperation<"distributor">> = []
 const cli = makeCli({
-  operationLayer: PublicApiLayer,
-  operations: PublicOperations,
+  operationLayers: {
+    distributor: Layer.empty,
+    investor: InvestorApiLayer,
+    public: PublicApiLayer,
+  },
+  operations: {
+    distributor: NoDistributorOperations,
+    investor: InvestorOperations,
+    public: PublicOperations,
+  },
   version: packageJson.version,
 })
 

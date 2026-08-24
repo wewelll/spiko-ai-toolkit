@@ -5,7 +5,7 @@ import * as HttpClient from "effect/unstable/http/HttpClient"
 import * as HttpClientError from "effect/unstable/http/HttpClientError"
 import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest"
 import { describe, expect, it } from "vitest"
-import { makeCli } from "../src/cli.ts"
+import { type DefinedOperation, makeCli } from "../src/cli.ts"
 import { PublicOperations } from "../src/generated/public.ts"
 
 const makeTestConsole = (stdout: Array<string>, stderr: Array<string>): Console.Console =>
@@ -14,13 +14,28 @@ const makeTestConsole = (stdout: Array<string>, stderr: Array<string>): Console.
     log: (...args: ReadonlyArray<unknown>) => stdout.push(args.join(" ")),
   })
 
+const NoDistributorOperations: ReadonlyArray<DefinedOperation<"distributor">> = []
+const NoInvestorOperations: ReadonlyArray<DefinedOperation<"investor">> = []
+
 const run = <LayerError>(
   operationLayer: Layer.Layer<Public.PublicApi, LayerError>,
   args: ReadonlyArray<string>,
 ) => {
   const stdout: Array<string> = []
   const stderr: Array<string> = []
-  const cli = makeCli({ operationLayer, operations: PublicOperations, version: "test" })
+  const cli = makeCli({
+    operationLayers: {
+      distributor: Layer.empty,
+      investor: Layer.empty,
+      public: operationLayer,
+    },
+    operations: {
+      distributor: NoDistributorOperations,
+      investor: NoInvestorOperations,
+      public: PublicOperations,
+    },
+    version: "test",
+  })
   return Effect.runPromise(
     cli.run(args).pipe(
       Effect.provide(NodeServices.layer),

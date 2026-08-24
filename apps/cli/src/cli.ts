@@ -25,6 +25,13 @@ export interface OperationResponseDefinition {
   readonly status: string
 }
 
+export interface OperationRequestBodyDefinition {
+  readonly kind: "json" | "multipart"
+  readonly mediaType: string
+  readonly required: boolean
+  readonly schema: Schema.Json
+}
+
 export interface OperationDefinition {
   readonly action: string
   readonly description: string
@@ -33,27 +40,70 @@ export interface OperationDefinition {
   readonly operationId: string
   readonly parameters: ReadonlyArray<OperationParameterDefinition>
   readonly path: string
-  readonly requestBody: Schema.Json | null
+  readonly requestBody: OperationRequestBodyDefinition | null
   readonly resource: string
   readonly responses: ReadonlyArray<OperationResponseDefinition>
   readonly safety: "mutation" | "read"
 }
 
-export interface DefineOperationOptions<Config extends Command.Command.Config, E, R> {
-  readonly definition: OperationDefinition
-  readonly invoke: (input: Command.Command.Config.Infer<Config>) => Effect.Effect<unknown, E, R>
+export interface DefineOperationOptions<
+  Config extends Command.Command.Config,
+  Definition extends OperationDefinition,
+  Prepared,
+  InputError,
+  InputRequirements,
+  RemoteError,
+  RemoteRequirements,
+> {
+  readonly confirmed: (input: Command.Command.Config.Infer<Config>) => boolean
+  readonly definition: Definition
+  readonly invoke: (input: Prepared) => Effect.Effect<unknown, RemoteError, RemoteRequirements>
   readonly parameters: Config
+  readonly prepare: (
+    input: Command.Command.Config.Infer<Config>,
+  ) => Effect.Effect<Prepared, InputError, InputRequirements>
 }
 
-export interface DefinedOperation<E = never, R = never> {
-  readonly command: Command.Command<string, never, {}, E, R>
+interface ProvidedOperation<Input, E, R> {
+  readonly command: Command.Command<string, Input, {}, E, R>
   readonly definition: OperationDefinition
+}
+
+export interface DefinedOperation<
+  Family extends SpikoFamily = SpikoFamily,
+  RemoteRequirements = never,
+  InputRequirements = never,
+  CommandInput = never,
+> {
+  readonly command: Command.Command<
+    string,
+    CommandInput,
+    {},
+    OperationFailure | OperationInputFailure,
+    InputRequirements | RemoteRequirements
+  >
+  readonly definition: OperationDefinition & { readonly family: Family }
+  readonly provide: <LayerError, LayerRequirements>(
+    layer: Layer.Layer<RemoteRequirements, LayerError, LayerRequirements>,
+  ) => ProvidedOperation<
+    CommandInput,
+    OperationFailure | OperationInputFailure,
+    InputRequirements | LayerRequirements
+  >
 }
 
 class OperationFailure extends Schema.TaggedError<OperationFailure>()("OperationFailure", {
   cause: Schema.Defect(),
   operation: Schema.String,
 }) {}
+
+class OperationInputFailure extends Schema.TaggedError<OperationInputFailure>()(
+  "OperationInputFailure",
+  {
+    cause: Schema.Defect(),
+    operation: Schema.String,
+  },
+) {}
 
 const renderSuccess = (operation: string, data: unknown) =>
   Console.log(
@@ -68,30 +118,83 @@ const renderSuccess = (operation: string, data: unknown) =>
     ),
   )
 
-export const defineOperation = <const Config extends Command.Command.Config, E, R>(
-  options: DefineOperationOptions<Config, E, R>,
-) => {
-  const command = Command.make(options.definition.action, options.parameters, (input) =>
-    options.invoke(input).pipe(
-      Effect.mapError(
-        (cause) =>
-          new OperationFailure({
-            cause,
-            operation: options.definition.operationId,
-          }),
-      ),
-      Effect.flatMap((data) => renderSuccess(options.definition.operationId, data)),
-    ),
-  ).pipe(
-    Command.withDescription(
-      `${options.definition.method} ${options.definition.path} — ${options.definition.description}`,
-    ),
-  )
+export const defineOperation = <
+  const Config extends Command.Command.Config,
+  const Definition extends OperationDefinition,
+  Prepared,
+  InputError,
+  InputRequirements,
+  RemoteError,
+  RemoteRequirements,
+>(
+  options: DefineOperationOptions<
+    Config,
+    Definition,
+    Prepared,
+    InputError,
+    InputRequirements,
+    RemoteError,
+    RemoteRequirements
+  >,
+): DefinedOperation<
+  Definition["family"],
+  RemoteRequirements,
+  InputRequirements,
+  Command.Command.Config.Infer<Config>
+> => {
+  const makeCommand = <InvocationError, InvocationRequirements>(
+    invoke: (input: Prepared) => Effect.Effect<unknown, InvocationError, InvocationRequirements>,
+  ) => {
+    const execute = (input: Command.Command.Config.Infer<Config>) =>
+      Effect.gen(function* () {
+        if (options.definition.safety === "mutation" && !options.confirmed(input)) {
+          return yield* Effect.fail(
+            new OperationInputFailure({
+              cause: new CliError.InvalidValue({
+                expected: "--confirm for a mutating Spiko Operation",
+                kind: "flag",
+                option: "confirm",
+                value: "false",
+              }),
+              operation: options.definition.operationId,
+            }),
+          )
+        }
+        const prepared = yield* options.prepare(input).pipe(
+          Effect.mapError(
+            (cause) =>
+              new OperationInputFailure({
+                cause,
+                operation: options.definition.operationId,
+              }),
+          ),
+        )
+        const data = yield* invoke(prepared).pipe(
+          Effect.mapError(
+            (cause) =>
+              new OperationFailure({
+                cause,
+                operation: options.definition.operationId,
+              }),
+          ),
+        )
+        yield* renderSuccess(options.definition.operationId, data)
+      })
+    const description = `${options.definition.method} ${options.definition.path} — ${options.definition.description}`
+
+    return Command.make(options.definition.action, options.parameters, execute).pipe(
+      Command.withDescription(description),
+    )
+  }
 
   return {
-    command,
+    command: makeCommand(options.invoke),
     definition: options.definition,
-  } satisfies DefinedOperation<Command.Error<typeof command>, Command.Services<typeof command>>
+    provide: (layer) => ({
+      command: makeCommand((input) => options.invoke(input).pipe(Effect.provide(layer))),
+      definition: options.definition,
+    }),
+  }
 }
 
 const listItem = (definition: OperationDefinition) => ({
@@ -142,6 +245,9 @@ const makeOperationsCommand = (definitions: ReadonlyArray<OperationDefinition>) 
 }
 
 const failureCode = (cause: unknown): "invalid-command" | "invalid-input" | "remote-failure" => {
+  if (cause instanceof OperationInputFailure) {
+    return "invalid-input"
+  }
   if (cause instanceof OperationFailure || !CliError.isCliError(cause)) {
     return "remote-failure"
   }
@@ -154,7 +260,7 @@ const failureCode = (cause: unknown): "invalid-command" | "invalid-input" | "rem
 }
 
 const failureMessage = (cause: unknown): string => {
-  if (cause instanceof OperationFailure) {
+  if (cause instanceof OperationFailure || cause instanceof OperationInputFailure) {
     return failureMessage(cause.cause)
   }
   if (!CliError.isCliError(cause)) {
@@ -169,7 +275,7 @@ const operationForFailure = (
   cause: unknown,
   definitions: ReadonlyArray<OperationDefinition>,
 ): string => {
-  if (cause instanceof OperationFailure) {
+  if (cause instanceof OperationFailure || cause instanceof OperationInputFailure) {
     return cause.operation
   }
   if (!CliError.isCliError(cause) || cause._tag !== "ShowHelp") {
@@ -213,27 +319,51 @@ const renderFailure = (
   return code === "remote-failure" ? 1 : 2
 }
 
-const makeCallCommand = <E, R>(
-  operations: ReadonlyArray<DefinedOperation<E, R>>,
-): Command.Command<"call", {}, {}, E, R> => {
-  const families = Array.from(
-    Map.groupBy(operations, (operation) => operation.definition.family),
-    ([family, familyOperations]) => {
-      const resources = Array.from(
-        Map.groupBy(familyOperations, (operation) => operation.definition.resource),
-        ([resource, resourceOperations]) =>
-          Command.make(resource).pipe(
-            Command.withSubcommands(resourceOperations.map((operation) => operation.command)),
-            Command.withDescription(`Invoke ${family} ${resource} Spiko Operations`),
-          ),
-      )
-
-      return Command.make(family).pipe(
-        Command.withSubcommands(resources),
-        Command.withDescription(`Invoke ${family} Spiko Operations`),
-      )
-    },
+const makeFamilyCommand = <Input, E, R>(
+  family: SpikoFamily,
+  operations: ReadonlyArray<ProvidedOperation<Input, E, R>>,
+) => {
+  if (operations.length === 0) {
+    return undefined
+  }
+  const resources = Array.from(
+    Map.groupBy(operations, (operation) => operation.definition.resource),
+    ([resource, resourceOperations]) =>
+      Command.make(resource).pipe(
+        Command.withSubcommands(resourceOperations.map((operation) => operation.command)),
+        Command.withDescription(`Invoke ${family} ${resource} Spiko Operations`),
+      ),
   )
+  return Command.make(family).pipe(
+    Command.withSubcommands(resources),
+    Command.withDescription(`Invoke ${family} Spiko Operations`),
+  )
+}
+
+const makeCallCommand = <
+  PublicInput,
+  PublicError,
+  PublicRequirements,
+  InvestorInput,
+  InvestorError,
+  InvestorRequirements,
+  DistributorInput,
+  DistributorError,
+  DistributorRequirements,
+>(operations: {
+  readonly distributor: ReadonlyArray<
+    ProvidedOperation<DistributorInput, DistributorError, DistributorRequirements>
+  >
+  readonly investor: ReadonlyArray<
+    ProvidedOperation<InvestorInput, InvestorError, InvestorRequirements>
+  >
+  readonly public: ReadonlyArray<ProvidedOperation<PublicInput, PublicError, PublicRequirements>>
+}) => {
+  const families = [
+    makeFamilyCommand("public", operations.public),
+    makeFamilyCommand("investor", operations.investor),
+    makeFamilyCommand("distributor", operations.distributor),
+  ].filter((command) => command !== undefined)
 
   return Command.make("call").pipe(
     Command.withSubcommands(families),
@@ -241,22 +371,72 @@ const makeCallCommand = <E, R>(
   )
 }
 
-export const makeCli = <E, R, LayerError, LayerRequirements>(options: {
-  readonly operationLayer: Layer.Layer<R, LayerError, LayerRequirements>
-  readonly operations: ReadonlyArray<DefinedOperation<E, R>>
+export const makeCli = <
+  PublicRemoteRequirements,
+  PublicInputRequirements,
+  PublicLayerError,
+  PublicLayerRequirements,
+  InvestorRemoteRequirements,
+  InvestorInputRequirements,
+  InvestorLayerError,
+  InvestorLayerRequirements,
+  DistributorRemoteRequirements,
+  DistributorInputRequirements,
+  DistributorLayerError,
+  DistributorLayerRequirements,
+>(options: {
+  readonly operationLayers: {
+    readonly distributor: Layer.Layer<
+      DistributorRemoteRequirements,
+      DistributorLayerError,
+      DistributorLayerRequirements
+    >
+    readonly investor: Layer.Layer<
+      InvestorRemoteRequirements,
+      InvestorLayerError,
+      InvestorLayerRequirements
+    >
+    readonly public: Layer.Layer<
+      PublicRemoteRequirements,
+      PublicLayerError,
+      PublicLayerRequirements
+    >
+  }
+  readonly operations: {
+    readonly distributor: ReadonlyArray<
+      DefinedOperation<
+        "distributor",
+        DistributorRemoteRequirements,
+        DistributorInputRequirements,
+        never
+      >
+    >
+    readonly investor: ReadonlyArray<
+      DefinedOperation<"investor", InvestorRemoteRequirements, InvestorInputRequirements, never>
+    >
+    readonly public: ReadonlyArray<
+      DefinedOperation<"public", PublicRemoteRequirements, PublicInputRequirements, never>
+    >
+  }
   readonly version: string
 }) => {
-  const { operationLayer, operations, version } = options
-  const operationsCommand = makeOperationsCommand(
-    operations.map((operation) => operation.definition),
+  const { operationLayers, operations, version } = options
+  const definitions = [...operations.public, ...operations.investor, ...operations.distributor].map(
+    (operation) => operation.definition,
   )
-  const callCommand = makeCallCommand(operations).pipe(Command.provide(operationLayer))
+  const operationsCommand = makeOperationsCommand(definitions)
+  const callCommand = makeCallCommand({
+    distributor: operations.distributor.map((operation) =>
+      operation.provide(operationLayers.distributor),
+    ),
+    investor: operations.investor.map((operation) => operation.provide(operationLayers.investor)),
+    public: operations.public.map((operation) => operation.provide(operationLayers.public)),
+  })
   const rootCommand = Command.make("spiko").pipe(
     Command.withSubcommands([operationsCommand, callCommand]),
     Command.withDescription("Discover and invoke Spiko Operations"),
   )
 
-  const definitions = operations.map((operation) => operation.definition)
   const run = (args: ReadonlyArray<string>) =>
     Console.consoleWith((console) => {
       const buffered: Array<(console: Console.Console) => void> = []
