@@ -44,7 +44,7 @@ spiko call distributor investor-documents upload \
   --confirm
 ```
 
-JSON request bodies always use `--payload <file>`. Multipart Operations expose typed form and file flags instead. Every method except `GET` and `HEAD` requires `--confirm`; the wizard's final run prompt does not replace it.
+JSON request bodies always use `--payload <file>`. Payload files are validated and re-encoded against the OpenAPI schema before sending, so unknown properties and JSON formatting are not forwarded byte-for-byte. Multipart Operations expose typed form and file flags instead. Every method except `GET` and `HEAD` requires `--confirm`; the wizard's final run prompt does not replace it.
 
 The wizard requires interactive stdin and stdout:
 

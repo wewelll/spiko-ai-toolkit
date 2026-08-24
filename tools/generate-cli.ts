@@ -183,6 +183,14 @@ const validateParameterBindings = (
       )
     }
   }
+  // Client methods receive path parameters positionally in template order, so the
+  // parameters array must list path parameters in that same order.
+  const parameterOrder = pathParameters.map((parameter) => parameter.name)
+  if (parameterOrder.some((name, index) => name !== placeholders[index])) {
+    throw new Error(
+      `${operation.operationId}: path parameters [${parameterOrder.join(", ")}] do not follow template order [${placeholders.join(", ")}]`,
+    )
+  }
   for (const parameter of operation.parameters) {
     if (parameter.in !== "path" && parameter.in !== "query") {
       throw new Error(

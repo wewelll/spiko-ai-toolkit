@@ -13,11 +13,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Full history so "Validate changesets" can diff against origin/main.
+          fetch-depth: 0
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Validate changesets
+        # Only run release-plan validation when this branch adds or updates a
+        # changeset, so PRs without a pending release (e.g. the automated spec
+        # refresh or a Version Packages PR) stay green.
+        run: |
+          if git diff --name-only --diff-filter=d origin/main -- .changeset | grep -q '\.changeset/[^/]*\.md$'; then
+            pnpm exec changeset status --since origin/main
+          else
+            echo "No changesets added or updated; skipping release-plan validation."
+          fi
       - run: pnpm check
       - run: pnpm build

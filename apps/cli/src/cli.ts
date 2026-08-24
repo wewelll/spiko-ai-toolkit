@@ -215,6 +215,7 @@ export const defineOperation = <
       if (Cause.hasInterruptsOnly(cause)) {
         return Effect.failCause(cause)
       }
+      // Squash returns die-only defects rather than throwing in the pinned Effect v4 beta.
       const failure = Cause.squash(cause)
       return failure instanceof OperationFailure
         ? Effect.fail(failure)
