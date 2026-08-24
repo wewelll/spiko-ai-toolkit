@@ -346,7 +346,7 @@ const renderPublicOperation = (
     safety: "read",
   }
   const exportName = camelize(operation.operationId)
-  const definitionSource = JSON.stringify(definition, null, 2).replaceAll("\n", "\n  ")
+  const definitionSource = JSON.stringify(definition)
   const parameters = bindings
     .map(
       (binding) =>
