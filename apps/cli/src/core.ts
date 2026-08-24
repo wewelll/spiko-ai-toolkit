@@ -13,7 +13,7 @@ export interface PreparedInvocation {
   readonly mutating: boolean
 }
 
-export class CliInputError extends Schema.TaggedErrorClass<CliInputError>()("CliInputError", {
+export class CliInputError extends Schema.TaggedError<CliInputError>()("CliInputError", {
   message: Schema.String,
 }) {}
 
