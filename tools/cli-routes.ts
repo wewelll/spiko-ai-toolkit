@@ -58,7 +58,21 @@ export const routeOperation = (source: CliRouteSource): CliRoute => {
 export const routeOperations = (
   sources: ReadonlyArray<CliOperationRouteSource>,
 ): ReadonlyArray<CliRoute> => {
-  const candidates = sources.map((source) => routeOperation(source))
+  const candidates = sources.map((source) => {
+    const route = routeOperation(source)
+    const operationName = source.operationId.split(".").at(-1) ?? source.operationId
+    const semanticVerb = String.kebabCase(operationName).split("-")[0]
+    const genericMutation =
+      route.action === "create" || route.action === "delete" || route.action === "update"
+    return genericMutation &&
+      semanticVerb !== undefined &&
+      semanticVerb !== "create" &&
+      semanticVerb !== "delete" &&
+      semanticVerb !== "get" &&
+      semanticVerb !== "update"
+      ? { ...route, action: semanticVerb }
+      : route
+  })
   const baseCounts = Map.groupBy(candidates, ({ action, resource }) => `${resource}/${action}`)
   const resolved = candidates.map((route, index) => {
     const source = sources[index]
@@ -69,7 +83,11 @@ export const routeOperations = (
       action:
         baseCounts.get(`${route.resource}/${route.action}`)?.length === 1
           ? route.action
-          : String.kebabCase(source.operationId),
+          : (() => {
+              const fallback = String.kebabCase(source.operationId)
+              const prefix = `${route.resource}-`
+              return fallback.startsWith(prefix) ? fallback.slice(prefix.length) : fallback
+            })(),
       resource: route.resource,
     }
   })

@@ -26,6 +26,14 @@ export interface OperationResponseDefinition {
 }
 
 export interface OperationRequestBodyDefinition {
+  readonly fields: ReadonlyArray<{
+    readonly acceptedExtensions: ReadonlyArray<string>
+    readonly file: boolean
+    readonly flag: string
+    readonly name: string
+    readonly required: boolean
+    readonly schema: Schema.Json
+  }>
   readonly kind: "json" | "multipart"
   readonly mediaType: string
   readonly required: boolean

@@ -302,14 +302,14 @@ const renderInvocation = (
   source: SourceOperation,
   bindings: ReadonlyArray<ParameterBinding>,
   clientTag: string,
-  hasBody: boolean,
+  bodyExpression: string | undefined,
 ): string => {
   const methodName = camelize(source.operation.operationId)
   const paths = bindings.filter((binding) => binding.parameter.in === "path").map(optionalInput)
   const queries = bindings.filter((binding) => binding.parameter.in === "query")
   const optionFields = [
     ...(queries.length === 0 ? [] : [`params: ${renderParamsObject(queries)}`]),
-    ...(hasBody ? ['payload: input["payload"]'] : []),
+    ...(bodyExpression === undefined ? [] : [`payload: ${bodyExpression}`]),
   ]
   const options = optionFields.length === 0 ? "undefined" : `{ ${optionFields.join(", ")} }`
   return `input => Effect.flatMap(${clientTag}, (client) => client.${methodName}(${[
@@ -325,10 +325,94 @@ interface FamilyGeneration {
   readonly family: CliSourceDocument["family"]
 }
 
-interface RequestBodyBinding {
+interface JsonRequestBodyBinding {
+  readonly kind: "json"
   readonly mediaType: "application/json"
   readonly schema: object
   readonly schemaName: string
+}
+
+interface MultipartFieldBinding {
+  readonly acceptedExtensions: ReadonlyArray<string>
+  readonly configKey: string
+  readonly file: boolean
+  readonly flag: string
+  readonly name: string
+  readonly required: boolean
+  readonly schema: object
+}
+
+interface MultipartRequestBodyBinding {
+  readonly fields: ReadonlyArray<MultipartFieldBinding>
+  readonly kind: "multipart"
+  readonly mediaType: "multipart/form-data"
+  readonly schema: object
+  readonly schemaName: string
+}
+
+type RequestBodyBinding = JsonRequestBodyBinding | MultipartRequestBodyBinding
+
+const supportedExtensions = (source: SourceOperation): ReadonlyArray<string> => {
+  const description = source.operation.description ?? ""
+  const match = /supported extensions are:\s*([^.]+)\./i.exec(description)
+  const extensions = match?.[1]
+    ?.split(",")
+    .map((extension) => extension.trim().toLowerCase())
+    .filter((extension) => extension.length > 0)
+  if (extensions === undefined || extensions.length === 0) {
+    throw new Error(
+      `${source.operation.operationId} ${source.method.toUpperCase()} ${source.path}: binary multipart fields require supported extensions in the OpenAPI description`,
+    )
+  }
+  return extensions
+}
+
+const multipartFields = (
+  document: OpenAPISpec,
+  source: SourceOperation,
+  schema: object,
+): ReadonlyArray<MultipartFieldBinding> => {
+  const resolved = resolveRootSchema(document, schema)
+  const properties = property(resolved, "properties")
+  const requiredValue = property(resolved, "required")
+  const required = Array.isArray(requiredValue) ? requiredValue.filter(Predicate.isString) : []
+  if (stringProperty(resolved, "type") !== "object" || !Predicate.isObject(properties)) {
+    throw new Error(`${source.operation.operationId}: multipart request body must be an object`)
+  }
+
+  return Object.entries(properties).map(([name, fieldSchema]) => {
+    if (!Predicate.isObject(fieldSchema)) {
+      throw new Error(`${source.operation.operationId}: multipart field ${name} has no schema`)
+    }
+    const resolvedField = resolveRootSchema(document, fieldSchema)
+    const items = property(resolvedField, "items")
+    const resolvedItems = Predicate.isObject(items) ? resolveRootSchema(document, items) : undefined
+    const file =
+      stringProperty(resolvedField, "type") === "array" &&
+      resolvedItems !== undefined &&
+      stringProperty(resolvedItems, "format") === "binary"
+    if (file) {
+      if (property(resolvedField, "minItems") !== 1 || property(resolvedField, "maxItems") !== 1) {
+        throw new Error(
+          `${source.operation.operationId}: multipart file field ${name} must require exactly one file`,
+        )
+      }
+    } else if (stringProperty(resolvedField, "type") !== "string") {
+      throw new Error(
+        `${source.operation.operationId}: unsupported multipart field ${name}: ${JSON.stringify(resolvedField)}`,
+      )
+    }
+    const flag = String.kebabCase(name)
+    return {
+      acceptedExtensions: file ? supportedExtensions(source) : [],
+      configKey: camelize(flag),
+      file,
+      flag,
+      name,
+      required: required.includes(name),
+      schema: file && resolvedItems !== undefined ? resolvedItems : resolvedField,
+    }
+  })
 }
 
 const requestBodyBinding = (
@@ -346,16 +430,56 @@ const requestBodyBinding = (
     )
   }
   const content = contents[0]
-  if (content === undefined || content[0] !== "application/json") {
-    throw new Error(
-      `${source.operation.operationId} ${source.method.toUpperCase()} ${source.path}: unsupported request media type ${content?.[0] ?? "missing"}`,
-    )
+  if (content === undefined) {
+    throw new Error(`${source.operation.operationId}: missing request body content`)
   }
-  return {
-    mediaType: content[0],
-    schema: content[1].schema,
-    schemaName: `${String.capitalize(camelize(source.operation.operationId))}RequestJson`,
+  if (content[0] === "application/json") {
+    return {
+      kind: "json",
+      mediaType: content[0],
+      schema: content[1].schema,
+      schemaName: `${String.capitalize(camelize(source.operation.operationId))}RequestJson`,
+    }
   }
+  if (content[0] === "multipart/form-data") {
+    const fields = multipartFields(document, source, content[1].schema)
+    if (fields.filter((field) => field.file).length !== 1) {
+      throw new Error(`${source.operation.operationId}: expected exactly one multipart file field`)
+    }
+    return {
+      fields,
+      kind: "multipart",
+      mediaType: content[0],
+      schema: content[1].schema,
+      schemaName: `${String.capitalize(camelize(source.operation.operationId))}RequestFormData`,
+    }
+  }
+  throw new Error(
+    `${source.operation.operationId} ${source.method.toUpperCase()} ${source.path}: unsupported request media type ${content[0]}`,
+  )
+}
+
+const renderMultipartField = (field: MultipartFieldBinding): string => {
+  if (!field.required) {
+    throw new Error(`Optional multipart field ${field.name} is not supported`)
+  }
+  if (field.file) {
+    return `Flag.string(${JSON.stringify(field.flag)}).pipe(\n      Flag.withMetavar("FILE"),\n      Flag.withDescription(${JSON.stringify(`Required multipart file: ${field.name}. Accepted extensions: ${field.acceptedExtensions.join(", ")}. Exactly one file.`)}),\n    )`
+  }
+  const parameter: OpenAPISpecParameter = {
+    description: schemaLabel(field.schema) ?? field.name,
+    in: "query",
+    name: field.name,
+    required: field.required,
+    schema: field.schema,
+  }
+  const rendered = renderScalarFlag({
+    configKey: field.configKey,
+    flag: field.flag,
+    parameter,
+    schema: field.schema,
+  })
+  return `${rendered}.pipe(\n      Flag.withDescription(${JSON.stringify(`Required multipart field: ${field.name} — ${schemaLabel(field.schema) ?? field.name}`)}),\n    )`
 }
 
 const renderOperation = (
@@ -368,10 +492,13 @@ const renderOperation = (
   const bindings = parameterBindings(document, source)
   const body = requestBodyBinding(document, source)
   const mutation = method !== "get" && method !== "head"
-  const syntheticFlags = [
-    ...(body === undefined ? [] : ["payload"]),
-    ...(mutation ? ["confirm"] : []),
-  ]
+  const bodyFlags =
+    body === undefined
+      ? []
+      : body.kind === "json"
+        ? ["payload"]
+        : body.fields.map((field) => field.flag)
+  const syntheticFlags = [...bodyFlags, ...(mutation ? ["confirm"] : [])]
   const duplicateSynthetic = syntheticFlags.find((flag) =>
     bindings.some((binding) => binding.flag === flag),
   )
@@ -400,7 +527,18 @@ const renderOperation = (
       body === undefined
         ? null
         : {
-            kind: "json",
+            fields:
+              body.kind === "json"
+                ? []
+                : body.fields.map((field) => ({
+                    acceptedExtensions: field.acceptedExtensions,
+                    file: field.file,
+                    flag: field.flag,
+                    name: field.name,
+                    required: field.required,
+                    schema: bundleSchema(document, field.schema),
+                  })),
+            kind: body.kind,
             mediaType: body.mediaType,
             required: true,
             schema: bundleSchema(document, body.schema),
@@ -418,9 +556,14 @@ const renderOperation = (
     ),
     ...(body === undefined
       ? []
-      : [
-          `    "payload": Flag.string("payload").pipe(\n      Flag.withMetavar("FILE"),\n      Flag.withDescription("Required ${body.mediaType} request body file"),\n    ),`,
-        ]),
+      : body.kind === "json"
+        ? [
+            `    "payload": Flag.string("payload").pipe(\n      Flag.withMetavar("FILE"),\n      Flag.withDescription("Required ${body.mediaType} request body file"),\n    ),`,
+          ]
+        : body.fields.map(
+            (field) =>
+              `    ${JSON.stringify(field.configKey)}: ${renderMultipartField(field).replaceAll("\n", "\n    ")},`,
+          )),
     ...(mutation
       ? [
           '    "confirm": Flag.boolean("confirm").pipe(Flag.withDescription("Confirm this mutating Spiko Operation")),',
@@ -430,7 +573,19 @@ const renderOperation = (
   const prepare =
     body === undefined
       ? "input => Effect.succeed(input)"
-      : `input => readJsonPayload(input["payload"], ${generation.clientModule}.${body.schemaName}).pipe(\n    Effect.map((payload) => ({ ...input, payload })),\n  )`
+      : body.kind === "json"
+        ? `input => readJsonPayload(input["payload"], ${generation.clientModule}.${body.schemaName}).pipe(\n    Effect.map((payload) => ({ ...input, payload })),\n  )`
+        : `input => readMultipartFile(input["file"], ${JSON.stringify(body.fields.find((field) => field.file)?.acceptedExtensions ?? [])}).pipe(\n    Effect.map((file) => ({ ...input, file: [file] })),\n  )`
+  const bodyExpression =
+    body === undefined
+      ? undefined
+      : body.kind === "json"
+        ? 'input["payload"]'
+        : `{ ${body.fields
+            .map(
+              (field) => `${JSON.stringify(field.name)}: input[${JSON.stringify(field.configKey)}]`,
+            )
+            .join(", ")} }`
 
   return {
     exportName,
@@ -441,7 +596,7 @@ const renderOperation = (
 ${parameters}
   },
   prepare: ${prepare},
-  invoke: ${renderInvocation(source, bindings, generation.clientTag, body !== undefined)},
+  invoke: ${renderInvocation(source, bindings, generation.clientTag, bodyExpression)},
 })`,
   }
 }
@@ -472,6 +627,32 @@ const readJsonPayload = <S extends Schema.Constraint>(file: string, schema: S) =
     return yield* Schema.encodeEffect(schema)(decoded).pipe(
       Effect.mapError(() => invalidPayload("an encodable OpenAPI request payload", file)),
     )
+  })
+`
+
+const multipartHelpers = `
+const invalidFile = (expected: string, value: string) =>
+  new CliError.InvalidValue({
+    expected,
+    kind: "flag",
+    option: "file",
+    value,
+  })
+
+const readMultipartFile = (file: string, acceptedExtensions: ReadonlyArray<string>) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem
+    const paths = yield* Path.Path
+    const extension = paths.extname(file).slice(1).toLowerCase()
+    if (!acceptedExtensions.includes(extension)) {
+      return yield* Effect.fail(
+        invalidFile(\`a file with one of these extensions: \${acceptedExtensions.join(", ")}\`, file),
+      )
+    }
+    const bytes = yield* fs.readFile(file).pipe(
+      Effect.mapError(() => invalidFile("a readable file", file)),
+    )
+    return new File([bytes], paths.basename(file))
   })
 `
 
@@ -507,15 +688,20 @@ const renderFamily = (document: OpenAPISpec, generation: FamilyGeneration): stri
     }
     return renderOperation(document, source, route, generation)
   })
-  const hasJsonBodies = operations.some((source) => source.operation.requestBody !== undefined)
+  const mediaTypes = operations.flatMap(({ operation }) =>
+    operation.requestBody === undefined ? [] : Object.keys(operation.requestBody.content),
+  )
+  const hasJsonBodies = mediaTypes.includes("application/json")
+  const hasMultipartBodies = mediaTypes.includes("multipart/form-data")
+  const hasBodies = hasJsonBodies || hasMultipartBodies
   const familyName = String.capitalize(generation.family)
   return `// This file is generated by tools/generate-clients.ts. Do not edit it by hand.
 
 import * as ${generation.clientModule} from "@spiko/${generation.family}-api-client"
-import { Effect, ${hasJsonBodies ? "FileSystem, " : ""}Option, Schema } from "effect"
-import { ${hasJsonBodies ? "CliError, " : ""}Flag } from "effect/unstable/cli"
+import { Effect, ${hasBodies ? "FileSystem, " : ""}Option, ${hasMultipartBodies ? "Path, " : ""}Schema } from "effect"
+import { ${hasBodies ? "CliError, " : ""}Flag } from "effect/unstable/cli"
 import { defineOperation } from "../cli.ts"
-${hasJsonBodies ? jsonPayloadHelpers : ""}
+${hasJsonBodies ? jsonPayloadHelpers : ""}${hasMultipartBodies ? multipartHelpers : ""}
 ${rendered.map(({ source }) => source).join("\n\n")}
 
 export const ${familyName}Operations = [
@@ -529,8 +715,13 @@ export const generateCliFiles = (
 ): ReadonlyArray<GeneratedCliFile> => {
   const publicDocument = documents.find((source) => source.family === "public")
   const investorDocument = documents.find((source) => source.family === "investor")
-  if (publicDocument === undefined || investorDocument === undefined) {
-    throw new Error("The Public and Investor OpenAPI documents are required to generate the CLI")
+  const distributorDocument = documents.find((source) => source.family === "distributor")
+  if (
+    publicDocument === undefined ||
+    investorDocument === undefined ||
+    distributorDocument === undefined
+  ) {
+    throw new Error("The Public, Investor, and Distributor OpenAPI documents are required")
   }
 
   return [
@@ -551,6 +742,15 @@ export const generateCliFiles = (
         family: "investor",
       }),
       path: "apps/cli/src/generated/investor.ts",
+    },
+    {
+      content: renderFamily(distributorDocument.document, {
+        clientModule: "Distributor",
+        clientTag: "Distributor.DistributorApi",
+        count: 65,
+        family: "distributor",
+      }),
+      path: "apps/cli/src/generated/distributor.ts",
     },
   ]
 }

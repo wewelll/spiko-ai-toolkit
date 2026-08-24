@@ -95,8 +95,8 @@ export type NumberFromString = string
 export const NumberFromString = Schema.String.annotate({ "description": "a string to be decoded into a number", "identifier": "NumberFromString" })
 export type UploadableInvestorDocumentType = "proof-of-bank-account-ownership" | "certificate-of-incorporation" | "articles-of-association" | "certificate-of-good-standing" | "official-id" | "proof-of-address" | "proof-of-funds" | "extract-of-ubo-register" | "company-register-extract" | "screening-report" | "power-of-attorney" | "other-document" | "unknown"
 export const UploadableInvestorDocumentType = Schema.Literals(["proof-of-bank-account-ownership", "certificate-of-incorporation", "articles-of-association", "certificate-of-good-standing", "official-id", "proof-of-address", "proof-of-funds", "extract-of-ubo-register", "company-register-extract", "screening-report", "power-of-attorney", "other-document", "unknown"]).annotate({ "identifier": "UploadableInvestorDocumentType" })
-export type PersistedFile = string
-export const PersistedFile = Schema.String.annotate({ "format": "binary", "identifier": "PersistedFile" })
+export type PersistedFile = globalThis.File
+export const PersistedFile = Schema.instanceOf(globalThis.File).annotate({ "format": "binary", "identifier": "PersistedFile" })
 export type Issue = { readonly "_tag": "Pointer" | "Unexpected" | "Missing" | "Composite" | "Refinement" | "Transformation" | "Type" | "Forbidden", readonly "path": ReadonlyArray<PropertyKey>, readonly "message": string }
 export const Issue = Schema.Struct({ "_tag": Schema.Literals(["Pointer", "Unexpected", "Missing", "Composite", "Refinement", "Transformation", "Type", "Forbidden"]).annotate({ "description": "The tag identifying the type of parse issue" }), "path": Schema.Array(PropertyKey).annotate({ "description": "The path to the property where the issue occurred" }), "message": Schema.String.annotate({ "description": "A descriptive message explaining the issue" }) }).annotate({ "description": "Represents an error encountered while parsing a value to match the schema", "identifier": "Issue" })
 export type NetworkNotEnabledError = { readonly "network": Network, readonly "_tag": "NetworkNotEnabledError" }
@@ -1445,7 +1445,7 @@ export const make = (
     }))
   ),
     "investorDocumentsUploadInvestorDocument": (options) => HttpClientRequest.post(`/v0/investor-documents`).pipe(
-    HttpClientRequest.bodyFormData(options.payload as any),
+    HttpClientRequest.bodyFormDataRecord(options.payload),
     withResponse(options.config)(HttpClientResponse.matchStatus({
       "2xx": decodeSuccess(InvestorDocumentsUploadInvestorDocument200),
       "400": decodeError("InvestorDocumentsUploadInvestorDocument400", InvestorDocumentsUploadInvestorDocument400),

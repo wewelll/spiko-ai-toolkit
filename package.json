@@ -16,7 +16,7 @@
     "dev:mcp": "pnpm --filter spiko-mcp dev",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
-    "generate:check": "pnpm generate:clients && git diff --exit-code -- openapi packages/public-api-client/src/generated.ts packages/investor-api-client/src/generated.ts packages/distributor-api-client/src/generated.ts apps/cli/src/generated/operations.ts apps/cli/src/generated/public.ts apps/cli/src/generated/investor.ts",
+    "generate:check": "pnpm generate:clients && git diff --exit-code -- openapi packages/public-api-client/src/generated.ts packages/investor-api-client/src/generated.ts packages/distributor-api-client/src/generated.ts apps/cli/src/generated/operations.ts apps/cli/src/generated/public.ts apps/cli/src/generated/investor.ts apps/cli/src/generated/distributor.ts",
     "generate:clients": "node --experimental-strip-types tools/generate-clients.ts",
     "lint": "oxlint --type-aware --deny-warnings .",
     "postinstall": "effect-tsgo patch --oxlint",

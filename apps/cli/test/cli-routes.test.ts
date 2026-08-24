@@ -24,6 +24,19 @@ describe("generated CLI route policy", () => {
     ])
   })
 
+  it("uses source semantic verbs for non-generic mutations", () => {
+    expect(
+      routeOperations([
+        {
+          method: "POST",
+          operationId: "investorDocuments.uploadInvestorDocument",
+          path: "/v0/investor-documents",
+          resource: "investor-documents",
+        },
+      ]),
+    ).toEqual([{ action: "upload", resource: "investor-documents" }])
+  })
+
   it("fails when deterministic fallback actions still collide", () => {
     expect(() =>
       routeOperations([
