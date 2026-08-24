@@ -1,19 +1,13 @@
 import * as NodeServices from "@effect/platform-node/NodeServices"
 import * as Public from "@spiko/public-api-client"
-import { Console, Effect, FileSystem, Layer, Option, Path, Queue, Stdio, Terminal } from "effect"
+import { Console, Effect, Layer, Option, Queue, Terminal } from "effect"
 import * as HttpClient from "effect/unstable/http/HttpClient"
 import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse"
 import { describe, expect, it } from "vitest"
 import { Command } from "effect/unstable/cli"
-import * as ChildProcessSpawner from "effect/unstable/process/ChildProcessSpawner"
 import { type DefinedOperation, makeCli } from "../src/cli.ts"
 import { GetFund, PublicOperations } from "../src/generated/public.ts"
-
-const makeTestConsole = (stdout: Array<string>, stderr: Array<string>): Console.Console =>
-  Object.assign(Object.create(console), {
-    error: (...args: ReadonlyArray<unknown>) => stderr.push(args.join(" ")),
-    log: (...args: ReadonlyArray<unknown>) => stdout.push(args.join(" ")),
-  })
+import { key, makeTestConsole, noOperations, wizardEnvironment } from "./helpers.ts"
 
 const fundId = "00000000-0000-0000-0000-000000000000"
 const fund = {
@@ -51,9 +45,6 @@ const PublicUnusedLayer = Layer.effect(
   Effect.die("Operation client layer must not be acquired"),
 )
 
-const NoDistributorOperations: ReadonlyArray<DefinedOperation<"distributor">> = []
-const NoInvestorOperations: ReadonlyArray<DefinedOperation<"investor">> = []
-
 const makeTestCli = <LayerError, LayerRequirements>(
   operationLayer: Layer.Layer<Public.PublicApi, LayerError, LayerRequirements>,
 ) =>
@@ -64,8 +55,8 @@ const makeTestCli = <LayerError, LayerRequirements>(
       public: operationLayer,
     },
     operations: {
-      distributor: NoDistributorOperations,
-      investor: NoInvestorOperations,
+      distributor: noOperations(),
+      investor: noOperations(),
       public: PublicOperations,
     },
     version: "test",
@@ -79,34 +70,24 @@ const UnusedTerminal = Terminal.make({
   rows: Effect.succeed(24),
 })
 
-const makeCliEnvironment = (terminal: Terminal.Terminal, interactive: boolean) =>
-  Layer.mergeAll(
-    FileSystem.layerNoop({}),
-    Path.layer,
-    Stdio.layerTest({
-      stdinIsTerminal: Effect.succeed(interactive),
-      stdoutIsTerminal: Effect.succeed(interactive),
-    }),
-    Layer.succeed(Terminal.Terminal, terminal),
-    Layer.succeed(
-      ChildProcessSpawner.ChildProcessSpawner,
-      ChildProcessSpawner.make(() => Effect.die("unused")),
-    ),
-  )
-
 type Equal<A, B> =
   (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false
 type Expect<T extends true> = T
 
+// The generated invocation closure's remote requirement is inferred from the real
+// invoke closure, so this proves the family client tag stays a compile-time
+// requirement until makeCli provides its layer.
+type OperationRequirements<Operation> =
+  Operation extends DefinedOperation<any, infer Requirements, any, any> ? Requirements : never
+
 type _OperationRequirementsRemainVisible = Expect<
-  Equal<Command.Services<typeof GetFund.command>, Public.PublicApi>
+  Equal<OperationRequirements<typeof GetFund>, Public.PublicApi>
 >
 
 const TypecheckCli = makeTestCli(PublicUnusedLayer)
 type _CliRequirementsRemainVisible = Expect<
   Equal<Command.Services<typeof TypecheckCli.rootCommand>, never>
 >
-
 describe("spiko command interface", () => {
   it("invokes a generated Public Operation through its client tag", async () => {
     const stdout: Array<string> = []
@@ -275,7 +256,7 @@ describe("spiko command interface", () => {
       cli
         .run(["--wizard"])
         .pipe(
-          Effect.provide(makeCliEnvironment(UnusedTerminal, false)),
+          Effect.provide(wizardEnvironment(UnusedTerminal, false)),
           Effect.provideService(Console.Console, makeTestConsole(stdout, stderr)),
         ),
     )
@@ -295,10 +276,6 @@ describe("spiko command interface", () => {
     const stderr: Array<string> = []
     const terminalOutput: Array<string> = []
     const calls: Array<string> = []
-    const key = (name: string, input = Option.none<string>()): Terminal.UserInput => ({
-      input,
-      key: { ctrl: false, meta: false, name, shift: false },
-    })
     const events = [
       key("down"),
       key("enter"),
@@ -332,7 +309,7 @@ describe("spiko command interface", () => {
         return yield* cli
           .run(["--wizard"])
           .pipe(
-            Effect.provide(makeCliEnvironment(terminal, true)),
+            Effect.provide(wizardEnvironment(terminal)),
             Effect.provideService(Console.Console, makeTestConsole(stdout, stderr)),
           )
       }),
@@ -365,7 +342,7 @@ describe("spiko command interface", () => {
         return yield* cli
           .run(["--wizard"])
           .pipe(
-            Effect.provide(makeCliEnvironment(terminal, true)),
+            Effect.provide(wizardEnvironment(terminal)),
             Effect.provideService(Console.Console, makeTestConsole(stdout, stderr)),
           )
       }),

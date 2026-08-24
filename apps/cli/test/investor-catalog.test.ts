@@ -5,21 +5,18 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Console, Effect, Layer, Redacted } from "effect"
 import * as HttpClient from "effect/unstable/http/HttpClient"
-import * as HttpClientError from "effect/unstable/http/HttpClientError"
-import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest"
 import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse"
 import { describe, expect, it } from "vitest"
-import { type DefinedOperation, makeCli } from "../src/cli.ts"
+import { makeCli } from "../src/cli.ts"
 import { InvestorOperations } from "../src/generated/investor.ts"
+import { deadHttpClient, makeTestConsole, noOperations, recordThenStop } from "./helpers.ts"
 
-const NoDistributorOperations: ReadonlyArray<DefinedOperation<"distributor">> = []
-const NoPublicOperations: ReadonlyArray<DefinedOperation<"public">> = []
-
-const makeTestConsole = (stdout: Array<string>, stderr: Array<string>): Console.Console =>
-  Object.assign(Object.create(console), {
-    error: (...args: ReadonlyArray<unknown>) => stderr.push(args.join(" ")),
-    log: (...args: ReadonlyArray<unknown>) => stdout.push(args.join(" ")),
-  })
+const writePayload = async (content: string) => {
+  const directory = await mkdtemp(join(tmpdir(), "spiko-cli-investor-"))
+  const path = join(directory, "payload.json")
+  await writeFile(path, content)
+  return { directory, path }
+}
 
 const run = <LayerError>(
   operationLayer: Layer.Layer<Investor.InvestorApi, LayerError>,
@@ -34,9 +31,9 @@ const run = <LayerError>(
       public: Layer.empty,
     },
     operations: {
-      distributor: NoDistributorOperations,
+      distributor: noOperations(),
       investor: InvestorOperations,
-      public: NoPublicOperations,
+      public: noOperations(),
     },
     version: "test",
   })
@@ -47,23 +44,6 @@ const run = <LayerError>(
       Effect.map((exitCode) => ({ exitCode, stderr, stdout })),
     ),
   )
-}
-
-const deadHttpClient = HttpClient.make(() => Effect.die("not executed"))
-const observedError = new HttpClientError.HttpClientError({
-  reason: new HttpClientError.TransportError({
-    description: "observed",
-    request: HttpClientRequest.get("https://investor.example.test"),
-  }),
-})
-const recordThenStop = (calls: Array<unknown>, call: unknown) =>
-  Effect.sync(() => calls.push(call)).pipe(Effect.flatMap(() => Effect.fail(observedError)))
-
-const writePayload = async (content: string) => {
-  const directory = await mkdtemp(join(tmpdir(), "spiko-cli-investor-"))
-  const path = join(directory, "payload.json")
-  await writeFile(path, content)
-  return { directory, path }
 }
 
 const investorId = "00000000-0000-4000-8000-000000000001"

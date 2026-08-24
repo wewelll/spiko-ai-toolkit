@@ -1,11 +1,12 @@
-import { Cause, Console, Effect, Layer, Schema, Stdio } from "effect"
+import { Cause, Console, Effect, FileSystem, Layer, Path, Schema, Stdio } from "effect"
 import { Argument, CliError, Command, Prompt } from "effect/unstable/cli"
 
 export const SpikoFamilies = ["public", "investor", "distributor"] as const
 
 export type SpikoFamily = (typeof SpikoFamilies)[number]
 
-export type HttpMethod = "DELETE" | "GET" | "HEAD" | "OPTIONS" | "PATCH" | "POST" | "PUT" | "TRACE"
+// Only methods with a supported safety classification and route action.
+export type HttpMethod = "DELETE" | "GET" | "HEAD" | "PATCH" | "POST" | "PUT"
 
 export interface OperationParameterDefinition {
   readonly description: string
@@ -83,13 +84,6 @@ export interface DefinedOperation<
   InputRequirements = never,
   CommandInput = never,
 > {
-  readonly command: Command.Command<
-    string,
-    CommandInput,
-    {},
-    OperationFailure | OperationInputFailure | OperationInternalFailure,
-    InputRequirements | RemoteRequirements
-  >
   readonly definition: OperationDefinition & { readonly family: Family }
   readonly provide: <LayerError, LayerRequirements>(
     layer: Layer.Layer<RemoteRequirements, LayerError, LayerRequirements>,
@@ -120,6 +114,57 @@ class OperationInputFailure extends Schema.TaggedError<OperationInputFailure>()(
     operation: Schema.String,
   },
 ) {}
+
+const invalidPayload = (expected: string, value: string) =>
+  new CliError.InvalidValue({
+    expected,
+    kind: "flag",
+    option: "payload",
+    value,
+  })
+
+const invalidFile = (expected: string, value: string) =>
+  new CliError.InvalidValue({
+    expected,
+    kind: "flag",
+    option: "file",
+    value,
+  })
+
+// Generated prepare closures call these helpers so request bodies are rejected
+// locally, before any client acquisition or invocation.
+export const readJsonPayload = <S extends Schema.Constraint>(file: string, schema: S) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem
+    const source = yield* fs
+      .readFileString(file)
+      .pipe(Effect.mapError(() => invalidPayload("a readable JSON payload file", file)))
+    const json = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Json))(source).pipe(
+      Effect.mapError(() => invalidPayload("valid JSON", file)),
+    )
+    const decoded = yield* Schema.decodeUnknownEffect(schema)(json).pipe(
+      Effect.mapError(() => invalidPayload("JSON matching the OpenAPI request schema", file)),
+    )
+    return yield* Schema.encodeEffect(schema)(decoded).pipe(
+      Effect.mapError(() => invalidPayload("an encodable OpenAPI request payload", file)),
+    )
+  })
+
+export const readMultipartFile = (file: string, acceptedExtensions: ReadonlyArray<string>) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem
+    const paths = yield* Path.Path
+    const extension = paths.extname(file).slice(1).toLowerCase()
+    if (!acceptedExtensions.includes(extension)) {
+      return yield* Effect.fail(
+        invalidFile(`a file with one of these extensions: ${acceptedExtensions.join(", ")}`, file),
+      )
+    }
+    const bytes = yield* fs
+      .readFile(file)
+      .pipe(Effect.mapError(() => invalidFile("a readable file", file)))
+    return new File([bytes], paths.basename(file))
+  })
 
 const renderSuccess = (operation: string, data: unknown) =>
   Console.log(
@@ -224,7 +269,6 @@ export const defineOperation = <
   }
 
   return {
-    command: makeCommand(options.invoke),
     definition: options.definition,
     provide: (layer) => ({
       command: makeCommand((input) => options.invoke(input).pipe(Effect.provide(layer))),
@@ -296,7 +340,7 @@ const failureCode = (
     return "internal-failure"
   }
   if (cause._tag !== "ShowHelp") {
-    return cause._tag === "UserError" ? "remote-failure" : "invalid-input"
+    return "invalid-input"
   }
   return cause.errors.some((error) => error._tag === "UnknownSubcommand")
     ? "invalid-command"

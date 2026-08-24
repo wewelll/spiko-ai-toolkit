@@ -1,21 +1,10 @@
 import * as NodeServices from "@effect/platform-node/NodeServices"
 import * as Public from "@spiko/public-api-client"
 import { Console, Effect, Layer } from "effect"
-import * as HttpClient from "effect/unstable/http/HttpClient"
-import * as HttpClientError from "effect/unstable/http/HttpClientError"
-import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest"
 import { describe, expect, it } from "vitest"
-import { type DefinedOperation, makeCli } from "../src/cli.ts"
+import { makeCli } from "../src/cli.ts"
 import { PublicOperations } from "../src/generated/public.ts"
-
-const makeTestConsole = (stdout: Array<string>, stderr: Array<string>): Console.Console =>
-  Object.assign(Object.create(console), {
-    error: (...args: ReadonlyArray<unknown>) => stderr.push(args.join(" ")),
-    log: (...args: ReadonlyArray<unknown>) => stdout.push(args.join(" ")),
-  })
-
-const NoDistributorOperations: ReadonlyArray<DefinedOperation<"distributor">> = []
-const NoInvestorOperations: ReadonlyArray<DefinedOperation<"investor">> = []
+import { deadHttpClient, makeTestConsole, noOperations, recordThenStop } from "./helpers.ts"
 
 const run = <LayerError>(
   operationLayer: Layer.Layer<Public.PublicApi, LayerError>,
@@ -30,8 +19,8 @@ const run = <LayerError>(
       public: operationLayer,
     },
     operations: {
-      distributor: NoDistributorOperations,
-      investor: NoInvestorOperations,
+      distributor: noOperations(),
+      investor: noOperations(),
       public: PublicOperations,
     },
     version: "test",
@@ -45,21 +34,10 @@ const run = <LayerError>(
   )
 }
 
-const deadHttpClient = HttpClient.make(() => Effect.die("not executed"))
 const PublicUnusedLayer = Layer.effect(
   Public.PublicApi,
   Effect.die("Operation client layer must not be acquired"),
 )
-
-const observedError = new HttpClientError.HttpClientError({
-  reason: new HttpClientError.TransportError({
-    description: "observed",
-    request: HttpClientRequest.get("https://public.example.test"),
-  }),
-})
-
-const recordThenStop = (calls: Array<unknown>, call: unknown) =>
-  Effect.sync(() => calls.push(call)).pipe(Effect.flatMap(() => Effect.fail(observedError)))
 
 describe("generated Public Operation Catalog", () => {
   it("contains every unique Public Operation with self-contained schemas and routes", () => {

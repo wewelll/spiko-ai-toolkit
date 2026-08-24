@@ -47,6 +47,9 @@ const methods: ReadonlyArray<OpenAPISpecMethodName> = [
 const operationDescription = (operation: OpenAPISpecOperation): string =>
   operation.description ?? operation.summary ?? operation.operationId
 
+// Resource names come from the primary OpenAPI tag. Spiko's tags may carry a
+// parenthetical qualifier such as "Investor Documents (v0)"; strip it before
+// kebab-casing so the qualifier never leaks into command grammar.
 const resourceName = (operation: OpenAPISpecOperation): string =>
   String.kebabCase(operation.tags[0].replace(/\s*\([^)]*\)\s*/g, " "))
 
@@ -120,6 +123,8 @@ const bundleSchema = (document: OpenAPISpec, schema: object): object => {
       return normalized
     }
 
+    // Register the name before visiting so recursive component schemas terminate;
+    // the placeholder entry is replaced once the visited subtree completes.
     if (!definitions.has(name)) {
       definitions.set(name, {})
       definitions.set(name, visit(componentSchema(document, name)))
@@ -225,17 +230,14 @@ const enumValues = (schema: object): ReadonlyArray<string> | undefined => {
     : undefined
 }
 
-const dayLike = (parameter: OpenAPISpecParameter, schema: object): boolean => {
+// A day-like parameter is recognized only from schema-backed evidence in the
+// committed OpenAPI document: a "Day" schema title or a yyyy-mm-dd description.
+// Parameter names are deliberately not consulted so free-text fields are never
+// silently constrained to date syntax.
+const dayLike = (schema: object): boolean => {
   const title = stringProperty(schema, "title")?.toLowerCase()
   const description = schemaDescription(schema)?.toLowerCase()
-  const name = parameter.name.toLowerCase()
-  return (
-    title === "day" ||
-    name === "day" ||
-    name.endsWith("day") ||
-    name.endsWith("date") ||
-    description?.includes("yyyy-mm-dd") === true
-  )
+  return title === "day" || description?.includes("yyyy-mm-dd") === true
 }
 
 const renderScalarFlag = (binding: ParameterBinding): string => {
@@ -248,11 +250,15 @@ const renderScalarFlag = (binding: ParameterBinding): string => {
   if (stringProperty(schema, "type") !== "string") {
     throw new Error(`${parameter.name}: unsupported parameter schema ${JSON.stringify(schema)}`)
   }
-  if (stringProperty(schema, "format") === "uuid") {
+  const format = stringProperty(schema, "format")
+  if (format === "uuid") {
     return `Flag.string(${JSON.stringify(flag)}).pipe(\n      Flag.withSchema(Schema.String.check(Schema.isUUID())),\n      Flag.withMetavar("UUID"),\n    )`
   }
-  if (dayLike(parameter, schema)) {
+  if (dayLike(schema)) {
     return `Flag.string(${JSON.stringify(flag)}).pipe(\n      Flag.withSchema(Schema.String.check(Schema.isPattern(/^\\d{4}-\\d{2}-\\d{2}$/))),\n      Flag.withMetavar("YYYY-MM-DD"),\n    )`
+  }
+  if (format !== undefined) {
+    throw new Error(`${parameter.name}: unsupported parameter format "${format}"`)
   }
   return `Flag.string(${JSON.stringify(flag)})`
 }
@@ -346,6 +352,8 @@ interface MultipartFieldBinding {
 
 interface MultipartRequestBodyBinding {
   readonly fields: ReadonlyArray<MultipartFieldBinding>
+  // The single file field from `fields`; requestBodyBinding enforces exactly one.
+  readonly file: MultipartFieldBinding
   readonly kind: "multipart"
   readonly mediaType: "multipart/form-data"
   readonly schema: object
@@ -354,6 +362,10 @@ interface MultipartRequestBodyBinding {
 
 type RequestBodyBinding = JsonRequestBodyBinding | MultipartRequestBodyBinding
 
+// Binary multipart fields are unusable without allowed extensions, and Spiko
+// declares them only in prose: the operation description sentence "Supported
+// extensions are: ...". Fail generation when that sentence is missing instead of
+// silently accepting every file.
 const supportedExtensions = (source: SourceOperation): ReadonlyArray<string> => {
   const description = source.operation.description ?? ""
   const match = /supported extensions are:\s*([^.]+)\./i.exec(description)
@@ -425,6 +437,11 @@ const requestBodyBinding = (
   if (requestBody === undefined) {
     return undefined
   }
+  if (requestBody.required !== true) {
+    throw new Error(
+      `${source.operation.operationId}: only required request bodies are supported; found required=${JSON.stringify(requestBody.required)}`,
+    )
+  }
   const contents = Object.entries(requestBody.content)
   if (contents.length !== 1) {
     throw new Error(
@@ -445,11 +462,14 @@ const requestBodyBinding = (
   }
   if (content[0] === "multipart/form-data") {
     const fields = multipartFields(document, source, content[1].schema)
-    if (fields.filter((field) => field.file).length !== 1) {
+    const fileFields = fields.filter((field) => field.file)
+    const fileField = fileFields[0]
+    if (fileField === undefined || fileFields.length !== 1) {
       throw new Error(`${source.operation.operationId}: expected exactly one multipart file field`)
     }
     return {
       fields,
+      file: fileField,
       kind: "multipart",
       mediaType: content[0],
       schema: content[1].schema,
@@ -551,7 +571,7 @@ const renderOperation = (
   }
   const exportName = camelize(operation.operationId)
   const definitionSource = JSON.stringify(definition)
-  const parameters = [
+  const renderedParameters = [
     ...bindings.map(
       (binding) =>
         `    ${JSON.stringify(binding.configKey)}: ${renderFlag(binding).replaceAll("\n", "\n    ")},`,
@@ -572,12 +592,13 @@ const renderOperation = (
         ]
       : []),
   ].join("\n")
+  const parameters = renderedParameters === "" ? "{}" : `{\n${renderedParameters}\n  }`
   const prepare =
     body === undefined
       ? "input => Effect.succeed(input)"
       : body.kind === "json"
         ? `input => readJsonPayload(input["payload"], ${generation.clientModule}.${body.schemaName}).pipe(\n    Effect.map((payload) => ({ ...input, payload })),\n  )`
-        : `input => readMultipartFile(input["file"], ${JSON.stringify(body.fields.find((field) => field.file)?.acceptedExtensions ?? [])}).pipe(\n    Effect.map((file) => ({ ...input, file: [file] })),\n  )`
+        : `input => readMultipartFile(input[${JSON.stringify(body.file.configKey)}], ${JSON.stringify(body.file.acceptedExtensions)}).pipe(\n    Effect.map((file) => ({ ...input, [${JSON.stringify(body.file.configKey)}]: [file] })),\n  )`
   const bodyExpression =
     body === undefined
       ? undefined
@@ -594,69 +615,12 @@ const renderOperation = (
     source: `export const ${exportName} = defineOperation({
   confirmed: ${mutation ? 'input => input["confirm"]' : "() => true"},
   definition: ${definitionSource},
-  parameters: {
-${parameters}
-  },
+  parameters: ${parameters},
   prepare: ${prepare},
   invoke: ${renderInvocation(source, bindings, generation.clientTag, bodyExpression)},
 })`,
   }
 }
-
-const jsonPayloadHelpers = `
-const decodeJson = Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Json))
-
-const invalidPayload = (expected: string, value: string) =>
-  new CliError.InvalidValue({
-    expected,
-    kind: "flag",
-    option: "payload",
-    value,
-  })
-
-const readJsonPayload = <S extends Schema.Constraint>(file: string, schema: S) =>
-  Effect.gen(function* () {
-    const fs = yield* FileSystem.FileSystem
-    const source = yield* fs.readFileString(file).pipe(
-      Effect.mapError(() => invalidPayload("a readable JSON payload file", file)),
-    )
-    const json = yield* decodeJson(source).pipe(
-      Effect.mapError(() => invalidPayload("valid JSON", file)),
-    )
-    const decoded = yield* Schema.decodeUnknownEffect(schema)(json).pipe(
-      Effect.mapError(() => invalidPayload("JSON matching the OpenAPI request schema", file)),
-    )
-    return yield* Schema.encodeEffect(schema)(decoded).pipe(
-      Effect.mapError(() => invalidPayload("an encodable OpenAPI request payload", file)),
-    )
-  })
-`
-
-const multipartHelpers = `
-const invalidFile = (expected: string, value: string) =>
-  new CliError.InvalidValue({
-    expected,
-    kind: "flag",
-    option: "file",
-    value,
-  })
-
-const readMultipartFile = (file: string, acceptedExtensions: ReadonlyArray<string>) =>
-  Effect.gen(function* () {
-    const fs = yield* FileSystem.FileSystem
-    const paths = yield* Path.Path
-    const extension = paths.extname(file).slice(1).toLowerCase()
-    if (!acceptedExtensions.includes(extension)) {
-      return yield* Effect.fail(
-        invalidFile(\`a file with one of these extensions: \${acceptedExtensions.join(", ")}\`, file),
-      )
-    }
-    const bytes = yield* fs.readFile(file).pipe(
-      Effect.mapError(() => invalidFile("a readable file", file)),
-    )
-    return new File([bytes], paths.basename(file))
-  })
-`
 
 const renderFamily = (document: OpenAPISpec, generation: FamilyGeneration): string => {
   const operations = collectOperations(document)
@@ -703,15 +667,18 @@ const renderFamily = (document: OpenAPISpec, generation: FamilyGeneration): stri
   )
   const hasJsonBodies = mediaTypes.includes("application/json")
   const hasMultipartBodies = mediaTypes.includes("multipart/form-data")
-  const hasBodies = hasJsonBodies || hasMultipartBodies
+  const bodyHelperImports = [
+    ...(hasJsonBodies ? ["readJsonPayload"] : []),
+    ...(hasMultipartBodies ? ["readMultipartFile"] : []),
+  ]
   const familyName = String.capitalize(generation.family)
   return `// This file is generated by tools/generate-clients.ts. Do not edit it by hand.
 
 import * as ${generation.clientModule} from "@spiko/${generation.family}-api-client"
-import { Effect, ${hasBodies ? "FileSystem, " : ""}Option, ${hasMultipartBodies ? "Path, " : ""}Schema } from "effect"
-import { ${hasBodies ? "CliError, " : ""}Flag } from "effect/unstable/cli"
-import { defineOperation } from "../cli.ts"
-${hasJsonBodies ? jsonPayloadHelpers : ""}${hasMultipartBodies ? multipartHelpers : ""}
+import { Effect, Option, Schema } from "effect"
+import { Flag } from "effect/unstable/cli"
+import { defineOperation${bodyHelperImports.length > 0 ? `, ${bodyHelperImports.join(", ")}` : ""} } from "../cli.ts"
+
 ${rendered.map(({ source }) => source).join("\n\n")}
 
 export const ${familyName}Operations = [

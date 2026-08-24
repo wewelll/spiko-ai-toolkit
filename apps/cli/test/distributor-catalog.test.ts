@@ -3,54 +3,20 @@ import * as Distributor from "@spiko/distributor-api-client"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import {
-  Console,
-  Effect,
-  FileSystem,
-  Layer,
-  Option,
-  Path,
-  Queue,
-  Redacted,
-  Stdio,
-  Terminal,
-} from "effect"
+import { Console, Effect, Layer, Option, Queue, Redacted, Terminal } from "effect"
 import * as HttpClient from "effect/unstable/http/HttpClient"
-import * as HttpClientError from "effect/unstable/http/HttpClientError"
-import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest"
-import * as ChildProcessSpawner from "effect/unstable/process/ChildProcessSpawner"
+import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse"
 import { describe, expect, it } from "vitest"
-import { type DefinedOperation, makeCli } from "../src/cli.ts"
+import { makeCli } from "../src/cli.ts"
 import { DistributorOperations } from "../src/generated/distributor.ts"
-
-const NoInvestorOperations: ReadonlyArray<DefinedOperation<"investor">> = []
-const NoPublicOperations: ReadonlyArray<DefinedOperation<"public">> = []
-
-const key = (name: string, input = Option.none<string>()): Terminal.UserInput => ({
-  input,
-  key: { ctrl: false, meta: false, name, shift: false },
-})
-
-const wizardEnvironment = (terminal: Terminal.Terminal) =>
-  Layer.mergeAll(
-    FileSystem.layerNoop({}),
-    Path.layer,
-    Stdio.layerTest({
-      stdinIsTerminal: Effect.succeed(true),
-      stdoutIsTerminal: Effect.succeed(true),
-    }),
-    Layer.succeed(Terminal.Terminal, terminal),
-    Layer.succeed(
-      ChildProcessSpawner.ChildProcessSpawner,
-      ChildProcessSpawner.make(() => Effect.die("unused")),
-    ),
-  )
-
-const makeTestConsole = (stdout: Array<string>, stderr: Array<string>): Console.Console =>
-  Object.assign(Object.create(console), {
-    error: (...args: ReadonlyArray<unknown>) => stderr.push(args.join(" ")),
-    log: (...args: ReadonlyArray<unknown>) => stdout.push(args.join(" ")),
-  })
+import {
+  deadHttpClient,
+  key,
+  makeTestConsole,
+  noOperations,
+  observedError,
+  wizardEnvironment,
+} from "./helpers.ts"
 
 const makeTestCli = <LayerError>(
   operationLayer: Layer.Layer<Distributor.DistributorApi, LayerError>,
@@ -63,8 +29,8 @@ const makeTestCli = <LayerError>(
     },
     operations: {
       distributor: DistributorOperations,
-      investor: NoInvestorOperations,
-      public: NoPublicOperations,
+      investor: noOperations(),
+      public: noOperations(),
     },
     version: "test",
   })
@@ -86,14 +52,6 @@ const run = <LayerError>(
   )
 }
 
-const deadHttpClient = HttpClient.make(() => Effect.die("not executed"))
-const observedError = new HttpClientError.HttpClientError({
-  reason: new HttpClientError.TransportError({
-    description: "observed",
-    request: HttpClientRequest.get("https://distributor.example.test"),
-  }),
-})
-
 const writeTestFile = async (name: string, content: Uint8Array) => {
   const directory = await mkdtemp(join(tmpdir(), "spiko-cli-distributor-"))
   const path = join(directory, name)
@@ -102,6 +60,7 @@ const writeTestFile = async (name: string, content: Uint8Array) => {
 }
 
 const investorId = "00000000-0000-4000-8000-000000000001"
+const shareClassId = "00000000-0000-4000-8000-000000000002"
 
 describe("generated Distributor Operation Catalog", () => {
   it("contains every unique Distributor Operation and route", () => {
@@ -162,6 +121,46 @@ describe("generated Distributor Operation Catalog", () => {
     } finally {
       await rm(testFile.directory, { force: true, recursive: true })
     }
+  })
+
+  it("renders binary account statements as base64 JSON data", async () => {
+    const bytes = new Uint8Array([37, 80, 68, 70])
+    const httpClient = HttpClient.make((request) =>
+      Effect.succeed(HttpClientResponse.fromWeb(request, new Response(bytes, { status: 200 }))),
+    )
+    const layer = Layer.succeed(
+      Distributor.DistributorApi,
+      Distributor.make(httpClient, {
+        baseUrl: "https://distributor.example.test",
+        clientId: Redacted.make("client-id"),
+        clientSecret: Redacted.make("client-secret"),
+      }),
+    )
+
+    const result = await run(layer, [
+      "call",
+      "distributor",
+      "accounting-positions",
+      "account-statement",
+      "--investor-id",
+      investorId,
+      "--share-class-id",
+      shareClassId,
+      "--from",
+      "2025-01-01",
+      "--to",
+      "2025-01-31",
+      "--locale",
+      "en",
+    ])
+
+    expect(result.exitCode).toBe(0)
+    expect(result.stderr).toEqual([])
+    expect(JSON.parse(result.stdout[0] ?? "")).toEqual({
+      data: { encoding: "base64", value: "JVBERg==" },
+      ok: true,
+      operation: "accountingPositions.downloadAccountStatement",
+    })
   })
 
   it("rejects confirmation, extension, and file-read failures before client acquisition", async () => {

@@ -1167,6 +1167,7 @@ export const make = (
     "accountingPositionsDownloadAccountStatement": (options) => HttpClientRequest.get(`/v0/accounting-positions/account-statement`).pipe(
     HttpClientRequest.setUrlParams({ "investorId": options.params["investorId"] as any, "shareClassId": options.params["shareClassId"] as any, "from": options.params["from"] as any, "to": options.params["to"] as any, "locale": options.params["locale"] as any }),
     withResponse(options.config)(HttpClientResponse.matchStatus({
+      "2xx": (response) => Effect.map(response.arrayBuffer, (buffer) => new Uint8Array(buffer)),
       "400": decodeError("AccountingPositionsDownloadAccountStatement400", AccountingPositionsDownloadAccountStatement400),
       "401": decodeError("AccountingPositionsDownloadAccountStatement401", AccountingPositionsDownloadAccountStatement401),
       "403": decodeError("AccountingPositionsDownloadAccountStatement403", AccountingPositionsDownloadAccountStatement403),
@@ -1765,7 +1766,7 @@ readonly "accountingPositionsGetAccountingPositionsHistory": <Config extends Ope
 *
 *   - The account statement will be a pdf file.
 */
-readonly "accountingPositionsDownloadAccountStatement": <Config extends OperationConfig>(options: { readonly params: typeof AccountingPositionsDownloadAccountStatementParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<void, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"AccountingPositionsDownloadAccountStatement400", typeof AccountingPositionsDownloadAccountStatement400.Type> | SpikoDistributorApiError<"AccountingPositionsDownloadAccountStatement401", typeof AccountingPositionsDownloadAccountStatement401.Type> | SpikoDistributorApiError<"AccountingPositionsDownloadAccountStatement403", typeof AccountingPositionsDownloadAccountStatement403.Type>>
+readonly "accountingPositionsDownloadAccountStatement": <Config extends OperationConfig>(options: { readonly params: typeof AccountingPositionsDownloadAccountStatementParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<Uint8Array, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"AccountingPositionsDownloadAccountStatement400", typeof AccountingPositionsDownloadAccountStatement400.Type> | SpikoDistributorApiError<"AccountingPositionsDownloadAccountStatement401", typeof AccountingPositionsDownloadAccountStatement401.Type> | SpikoDistributorApiError<"AccountingPositionsDownloadAccountStatement403", typeof AccountingPositionsDownloadAccountStatement403.Type>>
   /**
 * **Return a chronological list of daily yields for an investor in a specific share class.**
 *

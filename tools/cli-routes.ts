@@ -31,7 +31,10 @@ const methodAction = (method: string, hasPathParameters: boolean): string => {
     case "PUT":
       return "update"
     default:
-      return method.toLowerCase()
+      // Route policy only covers the HTTP methods the CLI can classify; fail
+      // generation instead of silently routing unsupported methods such as
+      // OPTIONS or TRACE.
+      throw new Error(`Unsupported HTTP method for generated CLI routes: ${method}`)
   }
 }
 
