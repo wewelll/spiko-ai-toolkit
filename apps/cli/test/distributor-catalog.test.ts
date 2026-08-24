@@ -3,10 +3,22 @@ import * as Distributor from "@spiko/distributor-api-client"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { Console, Effect, Layer, Redacted } from "effect"
+import {
+  Console,
+  Effect,
+  FileSystem,
+  Layer,
+  Option,
+  Path,
+  Queue,
+  Redacted,
+  Stdio,
+  Terminal,
+} from "effect"
 import * as HttpClient from "effect/unstable/http/HttpClient"
 import * as HttpClientError from "effect/unstable/http/HttpClientError"
 import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest"
+import * as ChildProcessSpawner from "effect/unstable/process/ChildProcessSpawner"
 import { describe, expect, it } from "vitest"
 import { type DefinedOperation, makeCli } from "../src/cli.ts"
 import { DistributorOperations } from "../src/generated/distributor.ts"
@@ -14,19 +26,36 @@ import { DistributorOperations } from "../src/generated/distributor.ts"
 const NoInvestorOperations: ReadonlyArray<DefinedOperation<"investor">> = []
 const NoPublicOperations: ReadonlyArray<DefinedOperation<"public">> = []
 
+const key = (name: string, input = Option.none<string>()): Terminal.UserInput => ({
+  input,
+  key: { ctrl: false, meta: false, name, shift: false },
+})
+
+const wizardEnvironment = (terminal: Terminal.Terminal) =>
+  Layer.mergeAll(
+    FileSystem.layerNoop({}),
+    Path.layer,
+    Stdio.layerTest({
+      stdinIsTerminal: Effect.succeed(true),
+      stdoutIsTerminal: Effect.succeed(true),
+    }),
+    Layer.succeed(Terminal.Terminal, terminal),
+    Layer.succeed(
+      ChildProcessSpawner.ChildProcessSpawner,
+      ChildProcessSpawner.make(() => Effect.die("unused")),
+    ),
+  )
+
 const makeTestConsole = (stdout: Array<string>, stderr: Array<string>): Console.Console =>
   Object.assign(Object.create(console), {
     error: (...args: ReadonlyArray<unknown>) => stderr.push(args.join(" ")),
     log: (...args: ReadonlyArray<unknown>) => stdout.push(args.join(" ")),
   })
 
-const run = <LayerError>(
+const makeTestCli = <LayerError>(
   operationLayer: Layer.Layer<Distributor.DistributorApi, LayerError>,
-  args: ReadonlyArray<string>,
-) => {
-  const stdout: Array<string> = []
-  const stderr: Array<string> = []
-  const cli = makeCli({
+) =>
+  makeCli({
     operationLayers: {
       distributor: operationLayer,
       investor: Layer.empty,
@@ -39,12 +68,21 @@ const run = <LayerError>(
     },
     version: "test",
   })
+
+const run = <LayerError>(
+  operationLayer: Layer.Layer<Distributor.DistributorApi, LayerError>,
+  args: ReadonlyArray<string>,
+) => {
+  const stdout: Array<string> = []
+  const stderr: Array<string> = []
   return Effect.runPromise(
-    cli.run(args).pipe(
-      Effect.provide(NodeServices.layer),
-      Effect.provideService(Console.Console, makeTestConsole(stdout, stderr)),
-      Effect.map((exitCode) => ({ exitCode, stderr, stdout })),
-    ),
+    makeTestCli(operationLayer)
+      .run(args)
+      .pipe(
+        Effect.provide(NodeServices.layer),
+        Effect.provideService(Console.Console, makeTestConsole(stdout, stderr)),
+        Effect.map((exitCode) => ({ exitCode, stderr, stdout })),
+      ),
   )
 }
 
@@ -196,6 +234,74 @@ describe("generated Distributor Operation Catalog", () => {
     expect(result.stdout[0]).toContain("Exactly one file")
     expect(result.stdout[0]).toContain("--confirm")
     expect(result.stdout[0]).not.toContain("--payload")
+  })
+
+  it("prompts for multipart fields and still enforces confirmation in the wizard", async () => {
+    const resources = Array.from(
+      new Set(DistributorOperations.map(({ definition }) => definition.resource)),
+    )
+    const resourceIndex = resources.indexOf("investor-documents")
+    const actions = DistributorOperations.filter(
+      ({ definition }) => definition.resource === "investor-documents",
+    ).map(({ definition }) => definition.action)
+    const actionIndex = actions.indexOf("upload")
+    if (resourceIndex < 0 || actionIndex < 0) {
+      throw new Error("Missing generated multipart wizard route")
+    }
+    const file = "/unused/identity.pdf"
+    const events = [
+      key("down"),
+      key("enter"),
+      key("enter"),
+      ...Array.from({ length: resourceIndex }, () => key("down")),
+      key("enter"),
+      ...Array.from({ length: actionIndex }, () => key("down")),
+      key("enter"),
+      ...Array.from(investorId, (character) => key(character, Option.some(character))),
+      key("enter"),
+      ...Array.from({ length: 4 }, () => key("down")),
+      key("enter"),
+      ...Array.from(file, (character) => key(character, Option.some(character))),
+      key("enter"),
+      key("enter"),
+      key("enter"),
+    ]
+    const stdout: Array<string> = []
+    const stderr: Array<string> = []
+    const terminalOutput: Array<string> = []
+    const layer = Layer.effect(
+      Distributor.DistributorApi,
+      Effect.die("Operation client layer must not be acquired"),
+    )
+
+    const exitCode = await Effect.runPromise(
+      Effect.gen(function* () {
+        const input = yield* Queue.unbounded<Terminal.UserInput>()
+        yield* Queue.offerAll(input, events)
+        const terminal = Terminal.make({
+          columns: Effect.succeed(80),
+          display: (text) => Effect.sync(() => terminalOutput.push(text)),
+          readInput: Effect.succeed(input),
+          readLine: Effect.die("unused"),
+          rows: Effect.succeed(24),
+        })
+        return yield* makeTestCli(layer)
+          .run(["--wizard"])
+          .pipe(
+            Effect.provide(wizardEnvironment(terminal)),
+            Effect.provideService(Console.Console, makeTestConsole(stdout, stderr)),
+          )
+      }),
+    )
+
+    expect(exitCode).toBe(2)
+    expect(terminalOutput.length).toBeGreaterThan(0)
+    expect(stdout.some((line) => line.includes("--file /unused/identity.pdf"))).toBe(true)
+    expect(stdout.some((line) => line.includes("--confirm false"))).toBe(true)
+    expect(JSON.parse(stderr[0] ?? "")).toMatchObject({
+      error: { code: "invalid-input" },
+      operation: "investorDocuments.uploadInvestorDocument",
+    })
   })
 
   it("keeps Distributor JSON request bodies on payload files", async () => {
