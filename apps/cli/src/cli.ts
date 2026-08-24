@@ -16,6 +16,15 @@ export interface OperationParameterDefinition {
   readonly schema: Schema.Json
 }
 
+export interface OperationResponseDefinition {
+  readonly content: ReadonlyArray<{
+    readonly mediaType: string
+    readonly schema: Schema.Json
+  }>
+  readonly description: string
+  readonly status: string
+}
+
 export interface OperationDefinition {
   readonly action: string
   readonly description: string
@@ -26,6 +35,7 @@ export interface OperationDefinition {
   readonly path: string
   readonly requestBody: Schema.Json | null
   readonly resource: string
+  readonly responses: ReadonlyArray<OperationResponseDefinition>
   readonly safety: "mutation" | "read"
 }
 

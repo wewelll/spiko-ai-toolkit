@@ -378,26 +378,18 @@ describe("spiko command interface", () => {
 
     expect(exitCode).toBe(0)
     expect(stderr).toEqual([])
-    expect(stdout).toEqual([
-      JSON.stringify(
-        {
-          data: [
-            {
-              action: "get",
-              command: "spiko call public funds get",
-              description: "Get Fund",
-              method: "GET",
-              operationId: "Get Fund",
-              path: "/funds/{fundId}",
-              resource: "funds",
-            },
-          ],
-          ok: true,
-          operation: "operations.list",
-        },
-        null,
-        2,
-      ),
-    ])
+    expect(stdout).toHaveLength(1)
+    const envelope = JSON.parse(stdout[0] ?? "")
+    expect(envelope).toMatchObject({ ok: true, operation: "operations.list" })
+    expect(envelope.data).toHaveLength(15)
+    expect(envelope.data).toContainEqual({
+      action: "get",
+      command: "spiko call public funds get",
+      description: "Get Fund",
+      method: "GET",
+      operationId: "Get Fund",
+      path: "/funds/{fundId}",
+      resource: "funds",
+    })
   })
 })

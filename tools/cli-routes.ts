@@ -11,6 +11,10 @@ export interface CliRoute {
   readonly resource: string
 }
 
+export interface CliOperationRouteSource extends CliRouteSource {
+  readonly operationId: string
+}
+
 const pathParameter = /^\{[^}]+\}$/
 const apiVersion = /^v\d+$/
 
@@ -49,4 +53,34 @@ export const routeOperation = (source: CliRouteSource): CliRoute => {
     action,
     resource: String.kebabCase(source.resource),
   }
+}
+
+export const routeOperations = (
+  sources: ReadonlyArray<CliOperationRouteSource>,
+): ReadonlyArray<CliRoute> => {
+  const candidates = sources.map((source) => routeOperation(source))
+  const baseCounts = Map.groupBy(candidates, ({ action, resource }) => `${resource}/${action}`)
+  const resolved = candidates.map((route, index) => {
+    const source = sources[index]
+    if (source === undefined) {
+      throw new Error(`Missing source for generated CLI route ${route.resource}/${route.action}`)
+    }
+    return {
+      action:
+        baseCounts.get(`${route.resource}/${route.action}`)?.length === 1
+          ? route.action
+          : String.kebabCase(source.operationId),
+      resource: route.resource,
+    }
+  })
+  const collisions = Array.from(
+    Map.groupBy(resolved, ({ action, resource }) => `${resource}/${action}`),
+    ([route, matches]) => ({ matches, route }),
+  ).filter(({ matches }) => matches.length > 1)
+  if (collisions.length > 0) {
+    throw new Error(
+      `Generated CLI route collision(s): ${collisions.map(({ route }) => route).join(", ")}`,
+    )
+  }
+  return resolved
 }
