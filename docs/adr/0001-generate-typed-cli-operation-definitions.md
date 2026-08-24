@@ -15,7 +15,7 @@ The CLI will be rebuilt around generated, typed Operation Definitions rather tha
 
 ## Consequences
 
-- Generated definitions and their route policy become part of `generate:check`; generated files remain replaceable implementation and are never hand-edited.
+- Generated definitions and their route policy become part of `generate:check`; generated files remain replaceable implementation and are never hand-edited. Deterministic post-generation corrections owned by the generation pipeline (`tools/fix-generated-client.ts`) are generation tooling, not hand edits: they must stay exact-match and fail loudly so drift or committed-spec changes fail regeneration.
 - The shell grammar and JSON envelopes are designed greenfield; no compatibility path or dual dispatch is maintained.
 - Existing client tags provide the remote seam: production layers and focused test layers are the two adapters. Layers are keyed by family and provided only around invocation closures, so confirmation and local input preparation precede client acquisition while discovery and help acquire no clients or credentials.
 - Help, the built-in wizard, local Effect Schema validation, operation discovery, mutation confirmation, and JSON rendering share one definition and one deep module.

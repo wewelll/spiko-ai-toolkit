@@ -123,6 +123,45 @@ describe("generated Distributor Operation Catalog", () => {
     }
   })
 
+  it("rejects repeated --file flags before client acquisition", async () => {
+    const acquisitions: Array<string> = []
+    const layer = Layer.effect(
+      Distributor.DistributorApi,
+      Effect.sync(() => {
+        acquisitions.push("acquired")
+        return Distributor.make(deadHttpClient, {
+          baseUrl: "https://distributor.example.test",
+          clientId: Redacted.make("client-id"),
+          clientSecret: Redacted.make("client-secret"),
+        })
+      }),
+    )
+
+    const result = await run(layer, [
+      "call",
+      "distributor",
+      "investor-documents",
+      "upload",
+      "--investor-id",
+      investorId,
+      "--type",
+      "official-id",
+      "--file",
+      "/does/not/exist-a.pdf",
+      "--file",
+      "/does/not/exist-b.pdf",
+      "--confirm",
+    ])
+
+    expect(result.exitCode).toBe(2)
+    expect(acquisitions).toEqual([])
+    expect(JSON.parse(result.stderr[0] ?? "")).toMatchObject({
+      error: { code: "invalid-input" },
+      ok: false,
+      operation: "investorDocuments.uploadInvestorDocument",
+    })
+  })
+
   it("renders binary account statements as base64 JSON data", async () => {
     const bytes = new Uint8Array([37, 80, 68, 70])
     const httpClient = HttpClient.make((request) =>
@@ -260,6 +299,9 @@ describe("generated Distributor Operation Catalog", () => {
       key("enter"),
       ...Array.from({ length: 4 }, () => key("down")),
       key("enter"),
+      // The exactly-one file cardinality first prompts for the file count; the
+      // bounded default of one is accepted with an additional Enter.
+      key("enter"),
       ...Array.from(file, (character) => key(character, Option.some(character))),
       key("enter"),
       key("enter"),
@@ -301,6 +343,45 @@ describe("generated Distributor Operation Catalog", () => {
       error: { code: "invalid-input" },
       operation: "investorDocuments.uploadInvestorDocument",
     })
+  })
+
+  it("rejects an empty --text-search locally per the committed NonEmptyString constraint", async () => {
+    const layer = Layer.effect(
+      Distributor.DistributorApi,
+      Effect.die("Operation client layer must not be acquired"),
+    )
+
+    const result = await run(layer, ["call", "distributor", "investors", "list", "--text-search="])
+
+    expect(result.exitCode).toBe(2)
+    expect(JSON.parse(result.stderr[0] ?? "")).toMatchObject({
+      error: { code: "invalid-input" },
+      ok: false,
+      operation: "investors.getAllInvestors",
+    })
+  })
+
+  it("passes a non-empty --text-search through to the client params", async () => {
+    const calls: Array<unknown> = []
+    const layer = Layer.mock(Distributor.DistributorApi, {
+      httpClient: deadHttpClient,
+      investorsGetAllInvestors: (options) =>
+        Effect.sync(() => calls.push(options?.params ?? {})).pipe(
+          Effect.flatMap(() => Effect.fail(observedError)),
+        ),
+    })
+
+    const result = await run(layer, [
+      "call",
+      "distributor",
+      "investors",
+      "list",
+      "--text-search",
+      "alpha",
+    ])
+
+    expect(result.exitCode).toBe(1)
+    expect(calls).toEqual([{ textSearch: "alpha" }])
   })
 
   it("keeps Distributor JSON request bodies on payload files", async () => {

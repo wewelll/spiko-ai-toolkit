@@ -44,6 +44,20 @@ const methods: ReadonlyArray<OpenAPISpecMethodName> = [
   "trace",
 ]
 
+// `export const ${name}` and client method selection require camelize(operationId)
+// to be a valid, non-reserved identifier; the pinned camelize drops leading digits
+// ("123" becomes empty) and passes reserved words through, so drift must fail
+// generation instead of emitting invalid TypeScript.
+const identifierPattern = /^[A-Za-z_$][A-Za-z0-9_$]*$/
+const reservedWords = new Set(
+  (
+    "break case catch class const continue debugger default delete do else enum export extends " +
+    "false finally for function if import in instanceof new null return super switch this throw " +
+    "true try typeof var void while with yield let static await implements interface package " +
+    "private protected public arguments eval"
+  ).split(" "),
+)
+
 const operationDescription = (operation: OpenAPISpecOperation): string =>
   operation.description ?? operation.summary ?? operation.operationId
 
@@ -72,6 +86,11 @@ const property = (value: object, key: string): unknown =>
 const stringProperty = (value: object, key: string): string | undefined => {
   const candidate = property(value, key)
   return Predicate.isString(candidate) ? candidate : undefined
+}
+
+const numberProperty = (value: object, key: string): number | undefined => {
+  const candidate = property(value, key)
+  return Predicate.isNumber(candidate) ? candidate : undefined
 }
 
 const schemaDescription = (schema: object): string | undefined =>
@@ -165,22 +184,18 @@ const validateParameterBindings = (
 
   for (const [name, occurrences] of placeholderCounts) {
     if (occurrences.length !== 1) {
-      throw new Error(`${operation.operationId}: path placeholder "${name}" appears more than once`)
+      throw new Error(`Path placeholder "${name}" appears more than once`)
     }
   }
   for (const name of placeholders) {
     const matches = pathParameters.filter((parameter) => parameter.name === name)
     if (matches.length !== 1 || !matches[0]?.required) {
-      throw new Error(
-        `${operation.operationId}: path placeholder "${name}" must have one required path parameter`,
-      )
+      throw new Error(`Path placeholder "${name}" must have one required path parameter`)
     }
   }
   for (const parameter of pathParameters) {
     if (!placeholders.includes(parameter.name)) {
-      throw new Error(
-        `${operation.operationId}: path parameter "${parameter.name}" has no placeholder in ${path}`,
-      )
+      throw new Error(`Path parameter "${parameter.name}" has no placeholder`)
     }
   }
   // Client methods receive path parameters positionally in template order, so the
@@ -188,14 +203,12 @@ const validateParameterBindings = (
   const parameterOrder = pathParameters.map((parameter) => parameter.name)
   if (parameterOrder.some((name, index) => name !== placeholders[index])) {
     throw new Error(
-      `${operation.operationId}: path parameters [${parameterOrder.join(", ")}] do not follow template order [${placeholders.join(", ")}]`,
+      `Path parameters [${parameterOrder.join(", ")}] do not follow template order [${placeholders.join(", ")}]`,
     )
   }
   for (const parameter of operation.parameters) {
     if (parameter.in !== "path" && parameter.in !== "query") {
-      throw new Error(
-        `${operation.operationId}: unsupported ${parameter.in} parameter "${parameter.name}"`,
-      )
+      throw new Error(`Unsupported ${parameter.in} parameter "${parameter.name}"`)
     }
   }
 
@@ -224,9 +237,7 @@ const parameterBindings = (
     ([flag, matches]) => ({ flag, matches }),
   ).filter(({ matches }) => matches.length > 1)
   if (duplicateFlags.length > 0) {
-    throw new Error(
-      `${source.operation.operationId}: duplicate CLI flag(s): ${duplicateFlags.map(({ flag }) => flag).join(", ")}`,
-    )
+    throw new Error(`Duplicate CLI flag(s): ${duplicateFlags.map(({ flag }) => flag).join(", ")}`)
   }
   return bindings
 }
@@ -248,6 +259,44 @@ const dayLike = (schema: object): boolean => {
   return title === "day" || description?.includes("yyyy-mm-dd") === true
 }
 
+// Committed string constraints become local Schema checks; any unrecognized
+// constraint fails generation so a new spec constraint is never silently
+// dropped from local validation.
+const stringSchemaChecks = (
+  parameter: OpenAPISpecParameter,
+  schema: object,
+): ReadonlyArray<string> => {
+  const format = stringProperty(schema, "format")
+  if (format !== undefined && format !== "uuid") {
+    throw new Error(`${parameter.name}: unsupported parameter format "${format}"`)
+  }
+  const unsupportedConstraints = [
+    "maxLength",
+    "pattern",
+    "minimum",
+    "maximum",
+    "exclusiveMinimum",
+    "exclusiveMaximum",
+    "multipleOf",
+  ].filter((constraint) => property(schema, constraint) !== undefined)
+  if (unsupportedConstraints.length > 0) {
+    throw new Error(
+      `${parameter.name}: unsupported parameter constraint(s): ${unsupportedConstraints.join(", ")}`,
+    )
+  }
+  const minLength = numberProperty(schema, "minLength")
+  if (minLength !== undefined && (!Number.isInteger(minLength) || minLength < 0)) {
+    throw new Error(
+      `${parameter.name}: unsupported parameter minLength ${JSON.stringify(minLength)}`,
+    )
+  }
+  return [
+    ...(format === "uuid" ? ["Schema.isUUID()"] : []),
+    ...(dayLike(schema) ? ["Schema.isPattern(/^\\d{4}-\\d{2}-\\d{2}$/)"] : []),
+    ...(minLength !== undefined && minLength > 0 ? [`Schema.isMinLength(${minLength})`] : []),
+  ]
+}
+
 const renderScalarFlag = (binding: ParameterBinding): string => {
   const { flag, parameter, schema } = binding
   const values = enumValues(schema)
@@ -258,17 +307,19 @@ const renderScalarFlag = (binding: ParameterBinding): string => {
   if (stringProperty(schema, "type") !== "string") {
     throw new Error(`${parameter.name}: unsupported parameter schema ${JSON.stringify(schema)}`)
   }
-  const format = stringProperty(schema, "format")
-  if (format === "uuid") {
-    return `Flag.string(${JSON.stringify(flag)}).pipe(\n      Flag.withSchema(Schema.String.check(Schema.isUUID())),\n      Flag.withMetavar("UUID"),\n    )`
+  const checks = stringSchemaChecks(parameter, schema)
+  if (checks.length === 0) {
+    return `Flag.string(${JSON.stringify(flag)})`
   }
-  if (dayLike(schema)) {
-    return `Flag.string(${JSON.stringify(flag)}).pipe(\n      Flag.withSchema(Schema.String.check(Schema.isPattern(/^\\d{4}-\\d{2}-\\d{2}$/))),\n      Flag.withMetavar("YYYY-MM-DD"),\n    )`
-  }
-  if (format !== undefined) {
-    throw new Error(`${parameter.name}: unsupported parameter format "${format}"`)
-  }
-  return `Flag.string(${JSON.stringify(flag)})`
+  const metavar =
+    stringProperty(schema, "format") === "uuid"
+      ? "UUID"
+      : dayLike(schema)
+        ? "YYYY-MM-DD"
+        : undefined
+  return `Flag.string(${JSON.stringify(flag)}).pipe(\n      Flag.withSchema(Schema.String.check(${checks.join(", ")})),${
+    metavar === undefined ? "" : `\n      Flag.withMetavar(${JSON.stringify(metavar)}),`
+  }\n    )`
 }
 
 const renderFlag = (binding: ParameterBinding): string => {
@@ -365,7 +416,6 @@ interface MultipartRequestBodyBinding {
   readonly kind: "multipart"
   readonly mediaType: "multipart/form-data"
   readonly schema: object
-  readonly schemaName: string
 }
 
 type RequestBodyBinding = JsonRequestBodyBinding | MultipartRequestBodyBinding
@@ -399,12 +449,12 @@ const multipartFields = (
   const requiredValue = property(resolved, "required")
   const required = Array.isArray(requiredValue) ? requiredValue.filter(Predicate.isString) : []
   if (stringProperty(resolved, "type") !== "object" || !Predicate.isObject(properties)) {
-    throw new Error(`${source.operation.operationId}: multipart request body must be an object`)
+    throw new Error("Multipart request body must be an object")
   }
 
   return Object.entries(properties).map(([name, fieldSchema]) => {
     if (!Predicate.isObject(fieldSchema)) {
-      throw new Error(`${source.operation.operationId}: multipart field ${name} has no schema`)
+      throw new Error(`Multipart field ${name} has no schema`)
     }
     const resolvedField = resolveRootSchema(document, fieldSchema)
     const items = property(resolvedField, "items")
@@ -415,14 +465,10 @@ const multipartFields = (
       stringProperty(resolvedItems, "format") === "binary"
     if (file) {
       if (property(resolvedField, "minItems") !== 1 || property(resolvedField, "maxItems") !== 1) {
-        throw new Error(
-          `${source.operation.operationId}: multipart file field ${name} must require exactly one file`,
-        )
+        throw new Error(`Multipart file field ${name} must require exactly one file`)
       }
     } else if (stringProperty(resolvedField, "type") !== "string") {
-      throw new Error(
-        `${source.operation.operationId}: unsupported multipart field ${name}: ${JSON.stringify(resolvedField)}`,
-      )
+      throw new Error(`Unsupported multipart field ${name}: ${JSON.stringify(resolvedField)}`)
     }
     const flag = String.kebabCase(name)
     return {
@@ -481,7 +527,6 @@ const requestBodyBinding = (
       kind: "multipart",
       mediaType: content[0],
       schema: content[1].schema,
-      schemaName: `${String.capitalize(camelize(source.operation.operationId))}RequestFormData`,
     }
   }
   throw new Error(
@@ -494,7 +539,7 @@ const renderMultipartField = (field: MultipartFieldBinding): string => {
     throw new Error(`Optional multipart field ${field.name} is not supported`)
   }
   if (field.file) {
-    return `Flag.string(${JSON.stringify(field.flag)}).pipe(\n      Flag.withMetavar("FILE"),\n      Flag.withDescription(${JSON.stringify(`Required multipart file: ${field.name}. Accepted extensions: ${field.acceptedExtensions.join(", ")}. Exactly one file.`)}),\n    )`
+    return `Flag.string(${JSON.stringify(field.flag)}).pipe(\n      Flag.between(1, 1),\n      Flag.withMetavar("FILE"),\n      Flag.withDescription(${JSON.stringify(`Required multipart file: ${field.name}. Accepted extensions: ${field.acceptedExtensions.join(", ")}. Exactly one file.`)}),\n    )`
   }
   const parameter: OpenAPISpecParameter = {
     description: schemaLabel(field.schema) ?? field.name,
@@ -533,7 +578,7 @@ const renderOperation = (
     bindings.some((binding) => binding.flag === flag),
   )
   if (duplicateSynthetic !== undefined) {
-    throw new Error(`${operation.operationId}: duplicate generated flag ${duplicateSynthetic}`)
+    throw new Error(`Duplicate generated flag ${duplicateSynthetic}`)
   }
   const definition = {
     action: route.action,
@@ -601,12 +646,15 @@ const renderOperation = (
       : []),
   ].join("\n")
   const parameters = renderedParameters === "" ? "{}" : `{\n${renderedParameters}\n  }`
+  // Multipart file flags are Flag.between(1, 1), so parsing guarantees one
+  // value; the empty-string fallback only satisfies indexed-access checking and
+  // is unreachable because the extension check would reject it anyway.
   const prepare =
     body === undefined
       ? "input => Effect.succeed(input)"
       : body.kind === "json"
         ? `input => readJsonPayload(input["payload"], ${generation.clientModule}.${body.schemaName}).pipe(\n    Effect.map((payload) => ({ ...input, payload })),\n  )`
-        : `input => readMultipartFile(input[${JSON.stringify(body.file.configKey)}], ${JSON.stringify(body.file.acceptedExtensions)}).pipe(\n    Effect.map((file) => ({ ...input, [${JSON.stringify(body.file.configKey)}]: [file] })),\n  )`
+        : `input => readMultipartFile(input[${JSON.stringify(body.file.configKey)}][0] ?? "", ${JSON.stringify(body.file.acceptedExtensions)}).pipe(\n    Effect.map((file) => ({ ...input, [${JSON.stringify(body.file.configKey)}]: [file] })),\n  )`
   const bodyExpression =
     body === undefined
       ? undefined
@@ -627,6 +675,21 @@ const renderOperation = (
   prepare: ${prepare},
   invoke: ${renderInvocation(source, bindings, generation.clientTag, bodyExpression)},
 })`,
+  }
+}
+
+// Failures while rendering one Operation must identify that Operation. Inner
+// messages stay locality-scoped; this wrapper contributes the OpenAPI identity
+// once so per-message context plumbing stays unnecessary.
+const withOperationContext = <T>(source: SourceOperation, render: () => T): T => {
+  const label = `${source.operation.operationId} ${source.method.toUpperCase()} ${source.path}`
+  try {
+    return render()
+  } catch (error) {
+    if (error instanceof Error && !error.message.includes(source.operation.operationId)) {
+      error.message = `${label}: ${error.message}`
+    }
+    throw error
   }
 }
 
@@ -654,6 +717,19 @@ const renderFamily = (document: OpenAPISpec, generation: FamilyGeneration): stri
       `Missing generated ${String.capitalize(generation.family)} client method(s): ${missingMethods.join(", ")}`,
     )
   }
+  const invalidIdentifiers = operations
+    .map((source) => ({ source, name: camelize(source.operation.operationId) }))
+    .filter(({ name }) => !identifierPattern.test(name) || reservedWords.has(name))
+  if (invalidIdentifiers.length > 0) {
+    throw new Error(
+      `Invalid generated identifier(s): ${invalidIdentifiers
+        .map(
+          ({ source, name }) =>
+            `${source.operation.operationId} ${source.method.toUpperCase()} ${source.path} -> ${JSON.stringify(name)}`,
+        )
+        .join(";")}`,
+    )
+  }
 
   const routes = routeOperations(
     operations.map(({ method, operation, path }) => ({
@@ -663,13 +739,15 @@ const renderFamily = (document: OpenAPISpec, generation: FamilyGeneration): stri
       resource: resourceName(operation),
     })),
   )
-  const rendered = operations.map((source, index) => {
-    const route = routes[index]
-    if (route === undefined) {
-      throw new Error(`Missing generated CLI route for ${source.operation.operationId}`)
-    }
-    return renderOperation(document, source, route, generation)
-  })
+  const rendered = operations.map((source, index) =>
+    withOperationContext(source, () => {
+      const route = routes[index]
+      if (route === undefined) {
+        throw new Error("Missing generated CLI route")
+      }
+      return renderOperation(document, source, route, generation)
+    }),
+  )
   const mediaTypes = operations.flatMap(({ operation }) =>
     operation.requestBody === undefined ? [] : Object.keys(operation.requestBody.content),
   )

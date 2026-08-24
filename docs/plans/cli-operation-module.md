@@ -253,9 +253,15 @@ spiko call distributor investor-documents upload \
 
 - Generate a distinct multipart body definition from `multipart/form-data`.
 - Generate typed scalar/enum form flags and file flags with source cardinality.
+  File cardinality is enforced by the flag itself (`Flag.between(1, 1)`), so
+  repeated file flags are rejected during parsing instead of silently resolved.
 - Read selected files through Effect FileSystem after confirmation.
 - Materialize the exact body expected by the generated Distributor client.
-- Correct the generator template or generated client emitter when its multipart type and runtime writer disagree; never patch generated output by hand.
+- Correct the generator template, the generated client emitter, or the owned
+  deterministic post-generation corrections in `tools/fix-generated-client.ts`
+  when emitted types and runtime behavior disagree; those corrections stay
+  exact-match, fail on drift, and are re-applied by every regeneration. Never
+  patch generated output by hand.
 - Generate the remaining Distributor JSON operations through the established path.
 
 ### Acceptance evidence

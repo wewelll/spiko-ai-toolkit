@@ -34,6 +34,8 @@ export const investorsGetAllInvestors = defineOperation({
           Flag.optional,
         ),
     "textSearch": Flag.string("text-search").pipe(
+          Flag.withSchema(Schema.String.check(Schema.isMinLength(1))),
+        ).pipe(
           Flag.withDescription("Optional query parameter: textSearch — a non empty string"),
           Flag.optional,
         ),
@@ -1193,12 +1195,13 @@ export const investorDocumentsUploadInvestorDocument = defineOperation({
           Flag.withDescription("Required multipart field: type — type"),
         ),
     "file": Flag.string("file").pipe(
+          Flag.between(1, 1),
           Flag.withMetavar("FILE"),
           Flag.withDescription("Required multipart file: file. Accepted extensions: pdf, jpg, png, doc, docx, xls, xlsx. Exactly one file."),
         ),
     "confirm": Flag.boolean("confirm").pipe(Flag.withDescription("Confirm this mutating Spiko Operation")),
   },
-  prepare: input => readMultipartFile(input["file"], ["pdf","jpg","png","doc","docx","xls","xlsx"]).pipe(
+  prepare: input => readMultipartFile(input["file"][0] ?? "", ["pdf","jpg","png","doc","docx","xls","xlsx"]).pipe(
     Effect.map((file) => ({ ...input, ["file"]: [file] })),
   ),
   invoke: input => Effect.flatMap(Distributor.DistributorApi, (client) => client.investorDocumentsUploadInvestorDocument({ payload: { "investorId": input["investorId"], "type": input["type"], "file": input["file"] } })),
