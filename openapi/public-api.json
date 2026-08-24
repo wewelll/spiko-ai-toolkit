@@ -2352,7 +2352,7 @@
                     "required": [
                       "day",
                       "amount",
-                      "allocation"
+                      "weights"
                     ],
                     "properties": {
                       "day": {
@@ -2363,13 +2363,33 @@
                       "amount": {
                         "$ref": "#/components/schemas/NonNegativeAmount"
                       },
-                      "allocation": {
-                        "type": "string",
-                        "enum": [
+                      "weights": {
+                        "type": "object",
+                        "required": [
                           "BTC",
                           "ETH",
+                          "SOL",
+                          "XRP",
                           "CASH"
-                        ]
+                        ],
+                        "properties": {
+                          "BTC": {
+                            "type": "number"
+                          },
+                          "ETH": {
+                            "type": "number"
+                          },
+                          "SOL": {
+                            "type": "number"
+                          },
+                          "XRP": {
+                            "type": "number"
+                          },
+                          "CASH": {
+                            "type": "number"
+                          }
+                        },
+                        "additionalProperties": false
                       }
                     },
                     "additionalProperties": false
@@ -3394,9 +3414,15 @@
           "GBP",
           "CHF",
           "JPY",
-          "SGD"
+          "SGD",
+          "SEK",
+          "NOK",
+          "DKK",
+          "PLN",
+          "HUF",
+          "CZK"
         ],
-        "description": "a currency code among \"EUR\", \"USD\", \"GBP\", \"CHF\", \"JPY\", \"SGD\"",
+        "description": "a currency code among \"EUR\", \"USD\", \"GBP\", \"CHF\", \"JPY\", \"SGD\", \"SEK\", \"NOK\", \"DKK\", \"PLN\", \"HUF\", \"CZK\"",
         "title": "Currency code"
       },
       "EVMNetwork": {
@@ -3437,7 +3463,14 @@
           "eurSAFO",
           "eurSAFOd",
           "gbpSAFO",
-          "chfSAFO"
+          "gbpSAFOd",
+          "chfSAFO",
+          "sekSAFO",
+          "nokSAFO",
+          "dkkSAFO",
+          "plnSAFO",
+          "hufSAFO",
+          "czkSAFO"
         ],
         "title": "ShareClassSymbol"
       },

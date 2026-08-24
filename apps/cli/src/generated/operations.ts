@@ -304,7 +304,7 @@ export const OperationCatalog = {
       "resource": "accounts"
     },
     "accountsGetDepositInstructions": {
-      "description": "\n**Retrieve virtual IBAN deposit instructions for a given account, share class, and subscription currency.**\n\nReturns a list of virtual bank accounts, each with its supported payment rails. An empty list means no virtual bank account has been provisioned (feature not available).\n\nEach entry includes payment informations and supported rails:\n- `SCT` / `SCT Instant` - SEPA Credit Transfer (EUR)\n- `Faster Payments` / `CHAPS` / `BACS` - UK local transfers (GBP); the `accountDetails` field then contains `sortCode` and `accountNumber`\n- `SWIFT` - international wire\n          ",
+      "description": "\n**Retrieve deposit instructions for a given account, share class, and subscription currency.**\n\nReturns a list of virtual bank accounts, each with its supported payment rails. An empty list means no virtual bank account has been provisioned (feature not available).\n\nEach entry includes payment informations and supported rails:\n- `SCT` / `SCT Instant` - SEPA Credit Transfer (EUR)\n- `Faster Payments` / `CHAPS` / `BACS` - UK local transfers (GBP); the `accountDetails` field then contains `sortCode` and `accountNumber`\n- `SWIFT` - international wire\n\nThe response also lists stablecoin deposit accounts under `stablecoinDepositAccounts`: one deposit address per supported network, provisioned on demand the first time instructions are requested. Each address accepts every stablecoin listed in its `stablecoins` field (independent of `subscriptionCurrency`); sending a supported stablecoin to it automatically creates and funds a subscription. An empty list means stablecoin deposits are not available for this account and share class (the feature requires an organization, or an individual with a tax identification number on file, on supported share classes).\n          ",
       "method": "GET",
       "parameters": [
         {
@@ -460,7 +460,7 @@ export const OperationCatalog = {
       "resource": "withdrawal-orders"
     },
     "withdrawalOrdersCreateWithdrawalOrder": {
-      "description": "\nCreate a new withdrawal order for an investor and return the order info.\n\n- The `quantity` field supports three modes:\n  - `{\"mode\":\"amount\",\"amount\":{\"value\":\"1000\",\"currency\":\"EUR\"}}` - withdraw a specific fiat amount\n  - `{\"mode\":\"shares\",\"shares\":\"10.5\"}` - withdraw a specific number of shares\n  - `{\"mode\":\"total\"}` - withdraw all shares (full withdrawal)\n",
+      "description": "\nCreate a new withdrawal order for an investor and return the order info.\n\n- The `quantity` field supports three modes:\n  - `{\"mode\":\"amount\",\"amount\":{\"value\":\"1000\",\"currency\":\"EUR\"}}` - withdraw a specific fiat amount\n  - `{\"mode\":\"shares\",\"shares\":\"10.5\"}` - withdraw a specific number of shares\n  - `{\"mode\":\"total\"}` - withdraw all shares (full withdrawal)\n\n- The `destination` field supports three types:\n  - `{\"type\":\"bank-transfer\",\"bankAccountId\":\"<uuid>\"}` - pay out to a registered bank account. Settles on the standard settlement cycle.\n  - `{\"type\":\"instant-bank-transfer\",\"bankAccountId\":\"<uuid>\"}` - **instant withdrawal** to a registered bank account. Funds are received the same day, without waiting for the standard settlement cycle. Only available from the `EUTBL` and `eurSAFO` share classes.\n  - `{\"type\":\"stablecoin-transfer\",\"walletId\":\"<uuid>\"}` - pay out in stablecoin to one of the investor's external wallets; the `walletId` is the external account's wallet id. Only available to organizations, on supported share classes.\n",
       "method": "POST",
       "parameters": [],
       "path": "/withdrawal-orders/",
@@ -927,6 +927,16 @@ export const OperationCatalog = {
       },
       "resource": "accounts"
     },
+    "accountsCreateExternalAccount": {
+      "description": "\n**Register and authorize one of an investor's own blockchain addresses as an external account.**\n\n- The returned `walletId` is the identifier to use as a `stablecoin-transfer` withdrawal destination on [create withdrawal order](#tag/Withdrawal-orders/operation/withdrawalOrders.createWithdrawalOrder), and the address a stablecoin deposit must originate from.\n- `network` must be one of the networks enabled for the environment, and `address` must be a valid address for that network's family.\n- The address must not already be assigned to another investor (409). Re-submitting an address whose account was previously archived reopens that account and returns its original `id`.\n- An investor may hold at most 100 active external accounts (409).\n- Whitelisting is submitted on-chain asynchronously: a success response means the transaction was launched, not yet confirmed.\n\n> ⚠️ Only register addresses the investor actually controls. Spiko does not verify ownership on this endpoint, and the address is authorized for payouts on your assertion alone.\n",
+      "method": "POST",
+      "parameters": [],
+      "path": "/v0/accounts/external",
+      "requestBody": {
+        "required": true
+      },
+      "resource": "accounts"
+    },
     "accountsGetAccount": {
       "description": "Retrieve account information (including the investor who owns it) by providing the account ID.",
       "method": "GET",
@@ -941,7 +951,7 @@ export const OperationCatalog = {
       "resource": "accounts"
     },
     "accountsGetDepositInstructions": {
-      "description": "\n**Retrieve virtual IBAN deposit instructions for a given account, share class, and subscription currency.**\n\nReturns a list of virtual bank accounts, each with its supported payment rails. An empty list means no virtual bank account has been provisioned (feature not available).\n\nEach entry includes payment informations and supported rails:\n- `SCT` / `SCT Instant` - SEPA Credit Transfer (EUR)\n- `Faster Payments` / `CHAPS` / `BACS` - UK local transfers (GBP); also includes `gbpLocalDetails` with sort code and account number\n- `SWIFT` - international wire\n          ",
+      "description": "\n**Retrieve deposit instructions for a given account, share class, and subscription currency.**\n\nReturns a list of virtual bank accounts, each with its supported payment rails. An empty list means no virtual bank account has been provisioned (feature not available).\n\nEach entry includes payment informations and supported rails:\n- `SCT` / `SCT Instant` - SEPA Credit Transfer (EUR)\n- `Faster Payments` / `CHAPS` / `BACS` - UK local transfers (GBP); also includes `gbpLocalDetails` with sort code and account number\n- `SWIFT` - international wire\n\nThe response also lists stablecoin deposit accounts under `stablecoinDepositAccounts`: one deposit address per supported network, provisioned on demand the first time instructions are requested. Each address accepts every stablecoin listed in its `stablecoins` field (independent of `subscriptionCurrency`); sending a supported stablecoin to it automatically creates and funds a subscription. An empty list means stablecoin deposits are not available for this account and share class (the feature requires an organization, or an individual with a tax identification number on file, on supported share classes).\n          ",
       "method": "GET",
       "parameters": [
         {
@@ -992,7 +1002,7 @@ export const OperationCatalog = {
       "resource": "deposit-orders"
     },
     "depositOrdersCreateDepositOrder": {
-      "description": "\n**Create a new deposit order for an investor with the specified parameters.**\n\n- Return order details, including wire instructions to fund the deposit.\n\n> **Distribute-with-Spiko's-license distributors** cannot place this order from their backend. The investor must place it directly from the browser with a short-lived [Investor JWT](/developers/distributor_api/technical_guides/investor_jwt), targeting the investor-scoped path **`POST /v0/investor/deposit-orders/`** (identical payload and response, but authenticated with the investor JWT as bearer token instead of your API credentials).\n",
+      "description": "\n**Create a new deposit order for an investor with the specified parameters.**\n\n- Return order details, including wire instructions to fund the deposit.\n- Set `sendDepositInstructions` to email the subscription form for this order to your distributor contact address.\n- `sendDepositInstructions` has no effect when authenticating with an investor JWT. Use [the subscription form endpoint](#tag/Deposit-orders/operation/depositOrders.getDepositOrderSubscriptionForm) to retrieve the same document, with any authentication method.\n\n> **Distribute-with-Spiko's-license distributors** cannot place this order from their backend. The investor must place it directly from the browser with a short-lived [Investor JWT](/developers/distributor_api/technical_guides/investor_jwt), targeting the investor-scoped path **`POST /v0/investor/deposit-orders/`** (identical payload and response, but authenticated with the investor JWT as bearer token instead of your API credentials).\n",
       "method": "POST",
       "parameters": [],
       "path": "/v0/deposit-orders/",
@@ -1012,6 +1022,24 @@ export const OperationCatalog = {
         }
       ],
       "path": "/v0/deposit-orders/{id}",
+      "resource": "deposit-orders"
+    },
+    "depositOrdersGetDepositOrderSubscriptionForm": {
+      "description": "\n**Get a pre-signed URL to download the subscription form for a deposit order, as a PDF.**\n\n- Returns a pre-signed URL that can be used to download the document. The URL is valid for a limited time.\n- The document restates the investor's details, the fund being subscribed to, and the wire instructions to fund the deposit. It is the document to forward to a bank, or to keep as a payment justification.\n- `locale` selects the language of the document and is required. The document is generated on first request and stored, so later requests for the same order and locale return a URL to the exact same file.\n",
+      "method": "GET",
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true
+        },
+        {
+          "in": "query",
+          "name": "locale",
+          "required": true
+        }
+      ],
+      "path": "/v0/deposit-orders/{id}/subscription-form",
       "resource": "deposit-orders"
     },
     "depositOrdersGetAllDistributorDepositOrders": {
@@ -1074,7 +1102,7 @@ export const OperationCatalog = {
       "resource": "withdrawal-orders"
     },
     "withdrawalOrdersCreateWithdrawalOrder": {
-      "description": "\n**Create a new withdrawal order for an investor with the specified parameters.**\n\n- The `quantity` field supports three modes:\n  - `{\"mode\":\"amount\",\"amount\":{\"value\":\"1000\",\"currency\":\"USD\"}}` - withdraw a specific fiat amount\n  - `{\"mode\":\"shares\",\"shares\":\"10.5\"}` - withdraw a specific number of shares\n  - `{\"mode\":\"total\"}` - withdraw all shares (full withdrawal)\n- If the order is expressed in shares or if it is total, the currency used will be the bank account currency.\n- Returns complete order details, including its UUID identifier.\n\n> **Distribute-with-Spiko's-license distributors** cannot place this order from their backend. The investor must place it directly from the browser with a short-lived [Investor JWT](/developers/distributor_api/technical_guides/investor_jwt), targeting the investor-scoped path **`POST /v0/investor/withdrawal-orders/`** (identical payload and response, but authenticated with the investor JWT as bearer token instead of your API credentials).\n",
+      "description": "\n**Create a new withdrawal order for an investor with the specified parameters.**\n\n- The `destination` field supports two modes:\n  - `{\"type\":\"bank-transfer\",\"bankAccountId\":\"...\"}` - pay out by bank transfer to one of the investor's bank accounts\n  - `{\"type\":\"stablecoin-transfer\",\"walletId\":\"...\"}` - pay out in stablecoin to one of the investor's external wallets (organizations or individuals with a tax identification number, on supported share classes)\n- The top-level `bankAccountId` field is a deprecated shorthand for the bank-transfer destination; provide exactly one of `destination` or `bankAccountId`.\n- The `quantity` field supports three modes:\n  - `{\"mode\":\"amount\",\"amount\":{\"value\":\"1000\",\"currency\":\"USD\"}}` - withdraw a specific fiat amount\n  - `{\"mode\":\"shares\",\"shares\":\"10.5\"}` - withdraw a specific number of shares\n  - `{\"mode\":\"total\"}` - withdraw all shares (full withdrawal)\n- If the order is expressed in shares or if it is total, the currency used will be the bank account currency.\n- Returns complete order details, including its UUID identifier.\n\n> **Distribute-with-Spiko's-license distributors** cannot place this order from their backend. The investor must place it directly from the browser with a short-lived [Investor JWT](/developers/distributor_api/technical_guides/investor_jwt), targeting the investor-scoped path **`POST /v0/investor/withdrawal-orders/`** (identical payload and response, but authenticated with the investor JWT as bearer token instead of your API credentials).\n",
       "method": "POST",
       "parameters": [],
       "path": "/v0/withdrawal-orders/",
@@ -1126,6 +1154,101 @@ export const OperationCatalog = {
       ],
       "path": "/v0/withdrawal-orders/{id}/cancel",
       "resource": "withdrawal-orders"
+    },
+    "swapOrdersGetSwapOrders": {
+      "description": "\n**Retrieve a paginated list of the swap orders made by an investor.**\n\n> ⚠️ **For displaying an account's activity, prefer the [account transaction history endpoint](#tag/Account-transactions/operation/accountTransactions.getAccountTransactions).** It returns deposits, withdrawals, transfers and yield accruals as a single time-ordered stream, with cursor pagination, so you don't need to call multiple per-order-type endpoints and reconcile their results.\n\n- Orders are sorted by creation date (newest first).\n- When `shareClassId` is specified, only swap orders with that share class on either side are returned.\n- Pagination parameters (`page` & `limit`) are optional and default to `page = 1` and `limit = 50`.\n",
+      "method": "GET",
+      "parameters": [
+        {
+          "in": "query",
+          "name": "investorId",
+          "required": true
+        },
+        {
+          "in": "query",
+          "name": "shareClassId",
+          "required": false
+        },
+        {
+          "in": "query",
+          "name": "page",
+          "required": false
+        },
+        {
+          "in": "query",
+          "name": "limit",
+          "required": false
+        }
+      ],
+      "path": "/v0/swap-orders/",
+      "resource": "swap-orders"
+    },
+    "swapOrdersCreateSwapOrder": {
+      "description": "\n**Move an investor's holdings directly from one share class to another. This is materialized by a linked redemption/subscription pair.**\n\n- `accountId` must belong to `investorId` and must already hold an active line for `toShareClassId`; otherwise the order is rejected with `MissingAccountLineError`. Add the line with [POST /v0/accounts/{accountId}/lines](#tag/Accounts/operation/accounts.addAccountLine) and retry.\n- The `quantity` field supports three modes:\n  - `{\"mode\":\"amount\",\"amount\":{\"value\":\"1000\",\"currency\":\"USD\"}}` - swap a specific amount\n  - `{\"mode\":\"shares\",\"shares\":\"10.5\"}` - swap a specific number of shares\n  - `{\"mode\":\"total\"}` - swap the whole position\n- In `amount` mode, `amount.currency` **must** be the currency of `fromShareClassId` (`USD` for `SAFO`, `EUR` for `eurSAFO`, and so on). Any other currency, including the target share class currency, is rejected with an `ApplicationError` carrying `customErrorCode: \"CurrencyNotSupported\"`. A swap is always sized on the side it leaves from; the conversion to the target currency happens at execution.\n- Not every pair of share classes can be swapped. An unavailable pair is rejected with `SwapNotAvailableError`, whose `reason` says why (`share-classes-not-swappable`, `no-conversion-path`, `currency-conversion-unavailable`, …).\n- Where the two share classes are denominated in different currencies, the conversion is applied at execution using that day's rate. The rate is not known when the order is created, so it appears in `settlement.exchangeRate` only once the order reaches `executed`.\n- The order stays `created` until both sides have been valued, then becomes `executed` and carries a `settlement` with both sides' amounts, shares and applied NAVs. Depending on the funds involved, the two sides are valued either on the same day or a few business days apart.\n\n> **Distribute-with-Spiko's-license distributors** cannot place this order. Swap orders are not yet available through an [Investor JWT](/developers/distributor_api/technical_guides/investor_jwt).\n",
+      "method": "POST",
+      "parameters": [],
+      "path": "/v0/swap-orders/",
+      "requestBody": {
+        "required": true
+      },
+      "resource": "swap-orders"
+    },
+    "swapOrdersGetSwapOrder": {
+      "description": "\n**Retrieve information about a specific swap order.**\n\n- Includes order status (`created` / `executed` / `canceled`).\n- Once `executed`, `settlement` carries both sides: the amount, share quantity and applied NAV that left the source share class and that entered the target one, plus the applied exchange rate for a cross-currency swap.\n",
+      "method": "GET",
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true
+        }
+      ],
+      "path": "/v0/swap-orders/{id}",
+      "resource": "swap-orders"
+    },
+    "swapOrdersGetAllDistributorSwapOrders": {
+      "description": "\n**Retrieve a paginated list of all swap orders made by a distributor.**\n\n- Orders are sorted by creation date (newest first).\n- Pagination parameters (`page` & `limit`) are optional and default to `page = 1` and `limit = 50`.\n",
+      "method": "GET",
+      "parameters": [
+        {
+          "in": "query",
+          "name": "page",
+          "required": false
+        },
+        {
+          "in": "query",
+          "name": "limit",
+          "required": false
+        }
+      ],
+      "path": "/v0/swap-orders/all/",
+      "resource": "swap-orders"
+    },
+    "swapOrdersCancelSwapOrder": {
+      "description": "\n**Cancel a swap order.** Order must be in `created` status, and only until the source side is valued: once that day's cutoff has passed the order can no longer be canceled and `SwapOrderNotCancelableError` is returned.\n",
+      "method": "PUT",
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true
+        }
+      ],
+      "path": "/v0/swap-orders/{id}/cancel",
+      "resource": "swap-orders"
+    },
+    "distributorsGetSwapRoutes": {
+      "description": "\n**Returns every share class pair you have access to that supports a swap.**\n\n- Both share classes of a returned pair are ones you can access, and the pair is one Spiko can currently convert. Use this to decide what to present: a pair absent from the list is a swap you should not offer.\n- Pass `fromShareClassId` to get only the routes leaving one share class.\n- A pair listed here is one [POST /v0/swap-orders/](#tag/Swap-orders/operation/swapOrders.createSwapOrder) accepts. The converse does not hold: that endpoint gates on convertibility and on the target account holding an active line, not on your access to the share classes, which is gated when the line is added. A pair absent here only for access reasons may therefore still be accepted.\n- Whether a pair is swappable depends only on the two share classes, so this response is safe to cache per distributor. It says nothing about a particular investor: balance, an active account line on the destination account, and the investor's own fund access are checked when the order is placed.\n",
+      "method": "GET",
+      "parameters": [
+        {
+          "in": "query",
+          "name": "fromShareClassId",
+          "required": false
+        }
+      ],
+      "path": "/v0/share-classes/swap-routes",
+      "resource": "swap-orders"
     },
     "portfoliosGetPortfolio": {
       "description": "Retrieve a view of an investor's investment portfolio, including current asset values, asset allocation, and performance metrics.",

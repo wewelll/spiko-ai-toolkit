@@ -33,7 +33,7 @@ const Success = Schema.Struct({
   source: Schema.String,
 })
 
-export class SpikoMcpError extends Schema.TaggedErrorClass<SpikoMcpError>()("SpikoMcpError", {
+export class SpikoMcpError extends Schema.TaggedError<SpikoMcpError>()("SpikoMcpError", {
   message: Schema.String,
 }) {}
 
