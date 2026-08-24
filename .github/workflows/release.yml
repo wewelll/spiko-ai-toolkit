@@ -32,16 +32,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Upgrade npm for trusted publishing
         run: npm install --global npm@11
-      # v2 is required for @changesets/cli v3: it reads the structured
-      # CHANGESETS_OUTPUT file instead of scraping "New tag:" stdout lines,
-      # which is how git tags and GitHub releases actually get created.
       - name: Create release pull request or publish
-        uses: changesets/action@v2 # v2.1.1 at time of writing
+        uses: changesets/action@v2
         with:
           version-script: pnpm changeset-version
           publish-script: pnpm changeset-publish
         env:
-          # No PAT is configured; the default token suffices once the repo
-          # setting "Allow GitHub Actions to create and approve pull requests"
-          # is enabled.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
