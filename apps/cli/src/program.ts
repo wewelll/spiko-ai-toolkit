@@ -24,4 +24,6 @@ const cli = makeCli({
 
 export const rootCommand = cli.rootCommand
 export const run = cli.run
-export const program = Effect.flatMap(Stdio.Stdio, (stdio) => Effect.flatMap(stdio.args, run))
+export const program = Effect.flatMap(Stdio.Stdio, (stdio) =>
+  Effect.flatMap(stdio.args, (args) => run(args)),
+)

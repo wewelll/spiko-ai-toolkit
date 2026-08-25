@@ -38,7 +38,7 @@ const run = <LayerError>(
     version: "test",
   })
   return Effect.runPromise(
-    cli.run(args).pipe(
+    cli.run(args, { env: {} }).pipe(
       Effect.provide(NodeServices.layer),
       Effect.provideService(Console.Console, makeTestConsole(stdout, stderr)),
       Effect.map((exitCode) => ({ exitCode, stderr, stdout })),
@@ -76,12 +76,8 @@ describe("generated Investor Operation Catalog", () => {
 
     expect(result.exitCode).toBe(0)
     expect(result.stderr).toEqual([])
-    expect(JSON.parse(result.stdout[0] ?? "")).toMatchObject({
-      data: expect.any(Array),
-      ok: true,
-      operation: "operations.list",
-    })
-    expect(JSON.parse(result.stdout[0] ?? "").data).toHaveLength(35)
+    // Outside agent mode the raw operation list is printed without an envelope.
+    expect(JSON.parse(result.stdout[0] ?? "")).toHaveLength(35)
   })
 
   it("validates and invokes a confirmed JSON mutation with the encoded payload", async () => {
@@ -282,11 +278,7 @@ describe("generated Investor Operation Catalog", () => {
 
     expect(result.exitCode).toBe(0)
     expect(result.stderr).toEqual([])
-    expect(JSON.parse(result.stdout[0] ?? "")).toEqual({
-      data: { encoding: "base64", value: "JVBERg==" },
-      ok: true,
-      operation: "accountingPositions.downloadAccountStatement",
-    })
+    expect(JSON.parse(result.stdout[0] ?? "")).toEqual({ encoding: "base64", value: "JVBERg==" })
   })
 
   it("documents JSON payload and independent mutation confirmation flags", async () => {

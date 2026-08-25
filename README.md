@@ -7,7 +7,7 @@ AI toolkit for interacting with [Spiko's APIs](https://docs.spiko.io/developers/
 This PNPM workspace contains:
 
 - Generated clients for the Public, Investor, and Distributor APIs
-- A `spiko` command-line client
+- A `spiko` command-line client with agent mode (structured envelopes, JSON help, and machine-readable discovery when driven by coding agents)
 - A read-only MCP server, currently exposing the Public API
 
 ## Installation
