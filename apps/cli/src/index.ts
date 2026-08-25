@@ -6,4 +6,13 @@ import * as NodeServices from "@effect/platform-node/NodeServices"
 import { Effect } from "effect"
 import { program } from "./program.ts"
 
-program.pipe(Effect.provide([NodeHttpClient.layerUndici, NodeServices.layer]), NodeRuntime.runMain)
+program.pipe(
+  Effect.tap((exitCode) =>
+    Effect.sync(() => {
+      process.exitCode = exitCode
+    }),
+  ),
+  Effect.asVoid,
+  Effect.provide([NodeHttpClient.layerUndici, NodeServices.layer]),
+  NodeRuntime.runMain,
+)

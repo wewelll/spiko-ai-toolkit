@@ -19,6 +19,8 @@ npm install --global spiko-cli
 spiko --help
 ```
 
+The CLI exposes generated discovery and invocation commands for all 115 committed Operations. See [`apps/cli/README.md`](apps/cli/README.md) for grammar, authentication, JSON payloads, multipart files, output, and exit statuses.
+
 Configure the MCP server in your MCP client with:
 
 ```json

@@ -42,7 +42,9 @@ jobs:
             packages/public-api-client/src/generated.ts \
             packages/investor-api-client/src/generated.ts \
             packages/distributor-api-client/src/generated.ts \
-            apps/cli/src/generated/operations.ts
+            apps/cli/src/generated/public.ts \
+            apps/cli/src/generated/investor.ts \
+            apps/cli/src/generated/distributor.ts
           git commit -m "Update generated Spiko API clients"
           git push --force-with-lease origin "HEAD:$branch"
 
@@ -50,4 +52,4 @@ jobs:
             --base main \
             --head "$branch" \
             --title "Update generated Spiko API clients" \
-            --body "Automated weekly refresh of Spiko's OpenAPI specifications and Effect HTTP clients."
+            --body "Automated weekly refresh of Spiko's OpenAPI specifications, Effect HTTP clients, and CLI Operation Definitions."

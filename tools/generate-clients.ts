@@ -1,15 +1,20 @@
 #!/usr/bin/env node
 
-import * as OpenApiGenerator from "@effect/openapi-generator/OpenApiGenerator"
 import { camelize } from "@effect/openapi-generator/Utils"
+import * as OpenApiGenerator from "@effect/openapi-generator/OpenApiGenerator"
 import * as NodeHttpClient from "@effect/platform-node/NodeHttpClient"
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 import * as NodeServices from "@effect/platform-node/NodeServices"
 import { Cause, Console, Effect, FileSystem, Schema } from "effect"
-import * as String from "effect/String"
 import { Command, Flag } from "effect/unstable/cli"
 import * as HttpClient from "effect/unstable/http/HttpClient"
-import type { OpenAPISpec, OpenAPISpecMethodName } from "effect/unstable/httpapi/OpenApi"
+import type { OpenAPISpec } from "effect/unstable/httpapi/OpenApi"
+import {
+  correctedBinaryResponseOperations,
+  fixGeneratedClient,
+  type GeneratedClientFamily,
+} from "./fix-generated-client.ts"
+import { generateCliFiles } from "./generate-cli.ts"
 
 const apis = [
   {
@@ -39,18 +44,58 @@ type ApiDefinition = (typeof apis)[number]
 
 const parseJson = Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Json))
 
-const methods: ReadonlyArray<OpenAPISpecMethodName> = [
-  "delete",
-  "get",
-  "head",
-  "options",
-  "patch",
-  "post",
-  "put",
-  "trace",
-]
+const httpMethods = ["delete", "get", "head", "options", "patch", "post", "put", "trace"] as const
 
-const cliResource = (tag: string): string => String.kebabCase(tag.replace(/\s*\([^)]*\)\s*/g, " "))
+// The OpenAPI generator cannot decode binary success payloads, so any Operation
+// declaring a non-JSON 2xx response needs a manual correction in
+// tools/fix-generated-client.ts. Derive the expected set from the committed
+// spec so newly added binary Operations fail generation instead of silently
+// succeeding with void.
+const binarySuccessOperations = (document: OpenAPISpec): ReadonlySet<string> => {
+  const operations = new Set<string>()
+  for (const item of Object.values(document.paths)) {
+    for (const method of httpMethods) {
+      const operation = item[method]
+      if (operation === undefined) {
+        continue
+      }
+      const hasBinarySuccess = Object.entries(operation.responses).some(
+        ([status, response]) =>
+          status.startsWith("2") &&
+          response.content !== undefined &&
+          Object.keys(response.content).some((mediaType) => mediaType !== "application/json"),
+      )
+      if (hasBinarySuccess) {
+        operations.add(camelize(operation.operationId))
+      }
+    }
+  }
+  return operations
+}
+
+const assertBinaryCorrectionsCoverSpec = (family: GeneratedClientFamily, document: OpenAPISpec) => {
+  const expected = binarySuccessOperations(document)
+  const corrected = correctedBinaryResponseOperations[family]
+  const uncorrected = [...expected].filter((operationId) => !corrected.has(operationId))
+  if (uncorrected.length > 0) {
+    throw new Error(
+      `${family}: binary success responses without a generated client correction: ${uncorrected.join(", ")}. Extend tools/fix-generated-client.ts.`,
+    )
+  }
+  const stale = [...corrected].filter((operationId) => !expected.has(operationId))
+  if (stale.length > 0) {
+    throw new Error(
+      `${family}: corrections for Operations without a binary success response: ${stale.join(", ")}. Remove them from tools/fix-generated-client.ts.`,
+    )
+  }
+}
+
+const generatedClientMethods = (source: string): ReadonlySet<string> =>
+  new Set(
+    Array.from(source.matchAll(/^\s*readonly "([^"]+)": <Config/gm), (match) => match[1]).filter(
+      (method): method is string => method !== undefined,
+    ),
+  )
 
 const readSpec = (definition: ApiDefinition, fetch: boolean) =>
   Effect.gen(function* () {
@@ -72,70 +117,6 @@ const readSpec = (definition: ApiDefinition, fetch: boolean) =>
     return normalized
   })
 
-const generateCatalog = (
-  documents: ReadonlyArray<readonly [ApiDefinition, OpenAPISpec]>,
-): string => {
-  const catalog = Object.fromEntries(
-    documents.map(([definition, document]) => {
-      const operations: Record<string, unknown> = {}
-
-      for (const [path, pathItem] of Object.entries(document.paths)) {
-        for (const method of methods) {
-          const operation = pathItem[method]
-          if (operation === undefined) {
-            continue
-          }
-
-          const operationId = operation.operationId
-
-          operations[camelize(operationId)] = {
-            description: operation.description ?? operation.summary ?? operationId,
-            method: method.toUpperCase(),
-            parameters: operation.parameters.map((parameter) => ({
-              in: parameter.in,
-              name: parameter.name,
-              required: parameter.required,
-            })),
-            path,
-            requestBody: operation.requestBody === undefined ? undefined : { required: true },
-            resource: cliResource(operation.tags[0]),
-          }
-        }
-      }
-
-      return [definition.id, operations]
-    }),
-  )
-
-  return `// This file is generated by tools/generate-clients.ts. Do not edit it by hand.
-
-export const ApiNames = ["public", "investor", "distributor"] as const
-
-export type ApiName = (typeof ApiNames)[number]
-
-export interface OperationParameter {
-  readonly in: "query" | "header" | "path" | "cookie"
-  readonly name: string
-  readonly required: boolean
-}
-
-export interface OperationMetadata {
-  readonly description: string
-  readonly method: string
-  readonly parameters: ReadonlyArray<OperationParameter>
-  readonly path: string
-  readonly resource: string
-  readonly requestBody?: {
-    readonly required: boolean
-  }
-}
-
-export const OperationCatalog = ${JSON.stringify(catalog, null, 2)} as const satisfies Readonly<
-  Record<ApiName, Readonly<Record<string, OperationMetadata>>>
->
-`
-}
-
 const fetch = Flag.boolean("fetch").pipe(
   Flag.withDescription("Download the latest Spiko specifications before generating clients"),
 )
@@ -154,6 +135,7 @@ const generate = Command.make("generate-clients", { fetch }, ({ fetch }) =>
         // The generator's own CLI uses this boundary cast: it accepts external OpenAPI
         // documents but does not currently export a runtime Schema for OpenAPISpec.
         const spec = json as unknown as OpenAPISpec
+        assertBinaryCorrectionsCoverSpec(definition.id, spec)
         const warnings: Array<OpenApiGenerator.OpenApiGeneratorWarning> = []
         const generated = yield* generator.generate(spec, {
           format: "httpclient",
@@ -169,9 +151,10 @@ const generate = Command.make("generate-clients", { fetch }, ({ fetch }) =>
             recursive: true,
           },
         )
+        const fixed = fixGeneratedClient(definition.id, generated)
         yield* fs.writeFileString(
           definition.generatedFile,
-          `// This file is generated by tools/generate-clients.ts. Do not edit it by hand.\n\n${generated}`
+          `// This file is generated by tools/generate-clients.ts. Do not edit it by hand.\n\n${fixed}`
             .replace(/[ \t]+$/gm, "")
             .trimEnd() + "\n",
         )
@@ -183,14 +166,26 @@ const generate = Command.make("generate-clients", { fetch }, ({ fetch }) =>
         }
 
         yield* Console.log(`Generated ${definition.generatedFile}`)
-        return [definition, spec] as const
+        return [definition, spec, generatedClientMethods(fixed)] as const
       }),
     )
 
-    const catalogFile = "apps/cli/src/generated/operations.ts"
     yield* fs.makeDirectory("apps/cli/src/generated", { recursive: true })
-    yield* fs.writeFileString(catalogFile, generateCatalog(documents))
-    yield* Console.log(`Generated ${catalogFile}`)
+
+    const cliFiles = generateCliFiles(
+      documents.map(([definition, document, clientMethods]) => ({
+        clientMethods,
+        document,
+        family: definition.id,
+      })),
+    )
+    for (const file of cliFiles) {
+      yield* fs.makeDirectory(file.path.slice(0, file.path.lastIndexOf("/")), {
+        recursive: true,
+      })
+      yield* fs.writeFileString(file.path, file.content)
+      yield* Console.log(`Generated ${file.path}`)
+    }
   }),
 )
 

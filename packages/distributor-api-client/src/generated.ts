@@ -95,8 +95,8 @@ export type NumberFromString = string
 export const NumberFromString = Schema.String.annotate({ "description": "a string to be decoded into a number", "identifier": "NumberFromString" })
 export type UploadableInvestorDocumentType = "proof-of-bank-account-ownership" | "certificate-of-incorporation" | "articles-of-association" | "certificate-of-good-standing" | "official-id" | "proof-of-address" | "proof-of-funds" | "extract-of-ubo-register" | "company-register-extract" | "screening-report" | "power-of-attorney" | "other-document" | "unknown"
 export const UploadableInvestorDocumentType = Schema.Literals(["proof-of-bank-account-ownership", "certificate-of-incorporation", "articles-of-association", "certificate-of-good-standing", "official-id", "proof-of-address", "proof-of-funds", "extract-of-ubo-register", "company-register-extract", "screening-report", "power-of-attorney", "other-document", "unknown"]).annotate({ "identifier": "UploadableInvestorDocumentType" })
-export type PersistedFile = string
-export const PersistedFile = Schema.String.annotate({ "format": "binary", "identifier": "PersistedFile" })
+export type PersistedFile = globalThis.File
+export const PersistedFile = Schema.instanceOf(globalThis.File).annotate({ "format": "binary", "identifier": "PersistedFile" })
 export type Issue = { readonly "_tag": "Pointer" | "Unexpected" | "Missing" | "Composite" | "Refinement" | "Transformation" | "Type" | "Forbidden", readonly "path": ReadonlyArray<PropertyKey>, readonly "message": string }
 export const Issue = Schema.Struct({ "_tag": Schema.Literals(["Pointer", "Unexpected", "Missing", "Composite", "Refinement", "Transformation", "Type", "Forbidden"]).annotate({ "description": "The tag identifying the type of parse issue" }), "path": Schema.Array(PropertyKey).annotate({ "description": "The path to the property where the issue occurred" }), "message": Schema.String.annotate({ "description": "A descriptive message explaining the issue" }) }).annotate({ "description": "Represents an error encountered while parsing a value to match the schema", "identifier": "Issue" })
 export type NetworkNotEnabledError = { readonly "network": Network, readonly "_tag": "NetworkNotEnabledError" }
@@ -1167,6 +1167,7 @@ export const make = (
     "accountingPositionsDownloadAccountStatement": (options) => HttpClientRequest.get(`/v0/accounting-positions/account-statement`).pipe(
     HttpClientRequest.setUrlParams({ "investorId": options.params["investorId"] as any, "shareClassId": options.params["shareClassId"] as any, "from": options.params["from"] as any, "to": options.params["to"] as any, "locale": options.params["locale"] as any }),
     withResponse(options.config)(HttpClientResponse.matchStatus({
+      "2xx": (response) => Effect.map(response.arrayBuffer, (buffer) => new Uint8Array(buffer)),
       "400": decodeError("AccountingPositionsDownloadAccountStatement400", AccountingPositionsDownloadAccountStatement400),
       "401": decodeError("AccountingPositionsDownloadAccountStatement401", AccountingPositionsDownloadAccountStatement401),
       "403": decodeError("AccountingPositionsDownloadAccountStatement403", AccountingPositionsDownloadAccountStatement403),
@@ -1445,7 +1446,7 @@ export const make = (
     }))
   ),
     "investorDocumentsUploadInvestorDocument": (options) => HttpClientRequest.post(`/v0/investor-documents`).pipe(
-    HttpClientRequest.bodyFormData(options.payload as any),
+    HttpClientRequest.bodyFormDataRecord(options.payload),
     withResponse(options.config)(HttpClientResponse.matchStatus({
       "2xx": decodeSuccess(InvestorDocumentsUploadInvestorDocument200),
       "400": decodeError("InvestorDocumentsUploadInvestorDocument400", InvestorDocumentsUploadInvestorDocument400),
@@ -1765,7 +1766,7 @@ readonly "accountingPositionsGetAccountingPositionsHistory": <Config extends Ope
 *
 *   - The account statement will be a pdf file.
 */
-readonly "accountingPositionsDownloadAccountStatement": <Config extends OperationConfig>(options: { readonly params: typeof AccountingPositionsDownloadAccountStatementParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<void, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"AccountingPositionsDownloadAccountStatement400", typeof AccountingPositionsDownloadAccountStatement400.Type> | SpikoDistributorApiError<"AccountingPositionsDownloadAccountStatement401", typeof AccountingPositionsDownloadAccountStatement401.Type> | SpikoDistributorApiError<"AccountingPositionsDownloadAccountStatement403", typeof AccountingPositionsDownloadAccountStatement403.Type>>
+readonly "accountingPositionsDownloadAccountStatement": <Config extends OperationConfig>(options: { readonly params: typeof AccountingPositionsDownloadAccountStatementParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<Uint8Array, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"AccountingPositionsDownloadAccountStatement400", typeof AccountingPositionsDownloadAccountStatement400.Type> | SpikoDistributorApiError<"AccountingPositionsDownloadAccountStatement401", typeof AccountingPositionsDownloadAccountStatement401.Type> | SpikoDistributorApiError<"AccountingPositionsDownloadAccountStatement403", typeof AccountingPositionsDownloadAccountStatement403.Type>>
   /**
 * **Return a chronological list of daily yields for an investor in a specific share class.**
 *

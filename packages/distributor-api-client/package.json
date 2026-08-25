@@ -19,6 +19,7 @@
   },
   "scripts": {
     "build": "rolldown -c && tsc -p tsconfig.build.json",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -26,6 +27,7 @@
   },
   "devDependencies": {
     "rolldown": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }
