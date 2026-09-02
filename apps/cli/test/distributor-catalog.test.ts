@@ -43,7 +43,7 @@ const run = <LayerError>(
   const stderr: Array<string> = []
   return Effect.runPromise(
     makeTestCli(operationLayer)
-      .run(args)
+      .run(args, { env: {} })
       .pipe(
         Effect.provide(NodeServices.layer),
         Effect.provideService(Console.Console, makeTestConsole(stdout, stderr)),
@@ -195,11 +195,7 @@ describe("generated Distributor Operation Catalog", () => {
 
     expect(result.exitCode).toBe(0)
     expect(result.stderr).toEqual([])
-    expect(JSON.parse(result.stdout[0] ?? "")).toEqual({
-      data: { encoding: "base64", value: "JVBERg==" },
-      ok: true,
-      operation: "accountingPositions.downloadAccountStatement",
-    })
+    expect(JSON.parse(result.stdout[0] ?? "")).toEqual({ encoding: "base64", value: "JVBERg==" })
   })
 
   it("rejects confirmation, extension, and file-read failures before client acquisition", async () => {
@@ -327,7 +323,7 @@ describe("generated Distributor Operation Catalog", () => {
           rows: Effect.succeed(24),
         })
         return yield* makeTestCli(layer)
-          .run(["--wizard"])
+          .run(["--wizard"], { env: {} })
           .pipe(
             Effect.provide(wizardEnvironment(terminal)),
             Effect.provideService(Console.Console, makeTestConsole(stdout, stderr)),

@@ -16,7 +16,8 @@ spiko --help
 ```text
 spiko call <family> <resource> <action> [flags]
 spiko operations list <family>
-spiko operations describe <family> <operation-id>
+spiko operations describe <family> <operation-id> [--summary]
+spiko agent schema [--compact]
 spiko --wizard
 ```
 
@@ -52,6 +53,35 @@ The wizard requires interactive stdin and stdout:
 spiko --wizard
 ```
 
+## Agent mode
+
+The CLI is agent-operable: when it detects that a coding agent is driving it, output switches from raw payloads to structured envelopes without changing the command grammar.
+
+Agent mode turns on when any of these hold:
+
+- An agent environment variable is set: `CLAUDECODE`, `CLAUDE_CODE`, `CURSOR_AGENT`, `CODEX`, `OPENAI_CODEX`, `OPENCODE`, `AIDER`, `CLINE`, `WINDSURF_AGENT`, `GITHUB_COPILOT`, `AMAZON_Q`, `AWS_Q_DEVELOPER`, `GEMINI_CODE_ASSIST`, `SRC_CODY`, `PI_CODING_AGENT`, or `AGENT` (Devin's `DEVIN_SESSION_ID` also counts)
+- The environment override `SPIKO_AGENT_MODE=1` (or `FORCE_AGENT_MODE=1`) is set; `=0` / `=false` forces agent mode off, overriding detection
+- The `--agent` flag is passed
+
+`--no-agent` disables agent mode with the highest precedence — append it whenever you author a script that someone will run outside the current agent session.
+
+What changes in agent mode:
+
+| Behavior       | Human mode         | Agent mode                                                                                                                         |
+| -------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Success output | Raw API payload    | `{ data, ok, operation, metadata }` envelope with `metadata.command`, `metadata.count` for arrays, and a script-authoring note     |
+| `--help`       | Rendered text help | JSON schema of the command tree, scoped to the requested subtree (`spiko call public funds get --help` describes only that action) |
+| Errors         | JSON on stderr     | Same JSON plus remediation `suggestions`                                                                                           |
+
+Discovery commands for agents:
+
+```sh
+spiko agent schema            # every command with flags, auth, best practices,
+                              # anti-patterns, workflows, and script-authoring guidance
+spiko agent schema --compact  # command paths + bare flag names only
+spiko operations describe <family> "<operation-id>" --summary   # token-light operation description
+```
+
 ## Configuration
 
 Public calls need no credentials. Optional base URL overrides:
@@ -84,17 +114,30 @@ SPIKO_DISTRIBUTOR_CLIENT_SECRET
 
 ## Output and exits
 
-A successful invocation writes one JSON document to stdout:
+Outside agent mode, a successful invocation writes one JSON document to stdout — the raw payload returned by the API:
 
 ```json
 {
-  "ok": true,
-  "operation": "Get Fund",
-  "data": {}
+  "id": "00000000-0000-4000-8000-000000000001",
+  "slug": "EUTBL"
 }
 ```
 
-Failures write one JSON document to stderr. Exit statuses are:
+In agent mode, the same invocation is wrapped in an envelope:
+
+```json
+{
+  "data": {},
+  "metadata": {
+    "command": "call public funds get",
+    "note": "This envelope (data/ok/operation/metadata) only appears in agent mode. If you are writing a script the user will run outside this agent session, append --no-agent so its output matches what they will see."
+  },
+  "ok": true,
+  "operation": "Get Fund"
+}
+```
+
+Failures write one JSON document to stderr in both modes; `error.suggestions` carries remediation hints such as re-running with `--confirm`. Exit statuses are:
 
 - `0`: success
 - `1`: configuration, remote, or internal failure

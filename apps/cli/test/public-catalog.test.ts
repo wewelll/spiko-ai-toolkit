@@ -26,7 +26,7 @@ const run = <LayerError>(
     version: "test",
   })
   return Effect.runPromise(
-    cli.run(args).pipe(
+    cli.run(args, { env: {} }).pipe(
       Effect.provide(NodeServices.layer),
       Effect.provideService(Console.Console, makeTestConsole(stdout, stderr)),
       Effect.map((exitCode) => ({ exitCode, stderr, stdout })),
@@ -68,17 +68,14 @@ describe("generated Public Operation Catalog", () => {
     expect(result.exitCode).toBe(0)
     expect(result.stderr).toEqual([])
     expect(result.stdout).toHaveLength(1)
-    const envelope = JSON.parse(result.stdout[0] ?? "")
-    expect(envelope).toMatchObject({
-      data: {
-        action: "latest",
-        family: "public",
-        operationId: "Get Latest Exchange Rate",
-      },
-      ok: true,
-      operation: "operations.describe",
+    // Outside agent mode the raw definition is printed without an envelope.
+    const described = JSON.parse(result.stdout[0] ?? "")
+    expect(described).toMatchObject({
+      action: "latest",
+      family: "public",
+      operationId: "Get Latest Exchange Rate",
     })
-    expect(envelope.data.parameters).toEqual(
+    expect(described.parameters).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           flag: "fund-id",
@@ -96,10 +93,10 @@ describe("generated Public Operation Catalog", () => {
         }),
       ]),
     )
-    expect(envelope.data.responses).toEqual(
+    expect(described.responses).toEqual(
       expect.arrayContaining([expect.objectContaining({ status: "200" })]),
     )
-    expect(JSON.stringify(envelope)).not.toContain("#/components/schemas/")
+    expect(JSON.stringify(described)).not.toContain("#/components/schemas/")
   })
 
   it("binds representative path, query, optional, enum, and date-like inputs", async () => {

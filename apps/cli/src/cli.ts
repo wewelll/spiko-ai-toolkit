@@ -1,5 +1,20 @@
 import { Cause, Console, Effect, FileSystem, Layer, Path, Schema, Stdio } from "effect"
-import { Argument, CliError, Command, Prompt } from "effect/unstable/cli"
+import {
+  Argument,
+  CliConfig,
+  CliError,
+  Command,
+  Flag,
+  GlobalFlag,
+  Prompt,
+} from "effect/unstable/cli"
+import {
+  type EnvironmentVariables,
+  AgentMode,
+  extractAgentFlags,
+  resolveAgentMode,
+} from "./agent-mode.ts"
+import { buildAgentSchema, summarizeDefinition } from "./agent-schema.ts"
 
 export const SpikoFamilies = ["public", "investor", "distributor"] as const
 
@@ -166,21 +181,55 @@ export const readMultipartFile = (file: string, acceptedExtensions: ReadonlyArra
     return new File([bytes], paths.basename(file))
   })
 
-const renderSuccess = (operation: string, data: unknown) =>
-  Console.log(
-    JSON.stringify(
-      {
-        data:
-          data instanceof Uint8Array
-            ? { encoding: "base64", value: Buffer.from(data).toString("base64") }
-            : (data ?? null),
-        ok: true,
-        operation,
-      },
-      null,
-      2,
-    ),
-  )
+/**
+ * Injected into every agent-mode envelope so an LLM authoring a script for
+ * later human execution knows the envelope will not exist in that context.
+ */
+const AGENT_ENVELOPE_NOTE =
+  "This envelope (data/ok/operation/metadata) only appears in agent mode. If you are writing a script the user will run outside this agent session, append --no-agent so its output matches what they will see."
+
+// Binary payloads cannot be printed as raw JSON in either mode, so both keep
+// this representation; everything else prints as the bare payload outside
+// agent mode.
+const toPayload = (data: unknown) =>
+  data instanceof Uint8Array
+    ? { encoding: "base64", value: Buffer.from(data).toString("base64") }
+    : (data ?? null)
+
+/**
+ * Render one successful invocation to stdout.
+ *
+ * Agent mode wraps the payload in a `{data, ok, operation, metadata}`
+ * envelope whose metadata carries the invoked command path, the
+ * payload count for arrays, and the script-authoring note. Outside agent mode
+ * the raw payload is printed so scripts and pipelines see exactly what the
+ * API returned.
+ */
+const renderSuccess = (operation: string, commandPath: ReadonlyArray<string>, data: unknown) =>
+  Effect.gen(function* () {
+    const agentMode = yield* AgentMode
+    const payload = toPayload(data)
+    if (!agentMode) {
+      yield* Console.log(JSON.stringify(payload, null, 2))
+      return
+    }
+    yield* Console.log(
+      JSON.stringify(
+        {
+          data: payload,
+          metadata: {
+            command: commandPath.join(" "),
+            ...(Array.isArray(payload) ? { count: payload.length } : {}),
+            note: AGENT_ENVELOPE_NOTE,
+          },
+          ok: true,
+          operation,
+        },
+        null,
+        2,
+      ),
+    )
+  })
 
 export const defineOperation = <
   const Config extends Command.Command.Config,
@@ -260,7 +309,16 @@ export const defineOperation = <
           ),
           Effect.catchCause(invocationFailure),
         )
-        yield* renderSuccess(options.definition.operationId, data)
+        yield* renderSuccess(
+          options.definition.operationId,
+          [
+            "call",
+            options.definition.family,
+            options.definition.resource,
+            options.definition.action,
+          ],
+          data,
+        )
       })
     const description = `${options.definition.method} ${options.definition.path} — ${options.definition.description}`
 
@@ -296,6 +354,7 @@ const makeOperationsCommand = (definitions: ReadonlyArray<OperationDefinition>) 
   const list = Command.make("list", { family }, ({ family }) =>
     renderSuccess(
       "operations.list",
+      ["operations", "list"],
       definitions.filter((definition) => definition.family === family).map(listItem),
     ),
   ).pipe(Command.withDescription("List generated Spiko Operations"))
@@ -303,26 +362,117 @@ const makeOperationsCommand = (definitions: ReadonlyArray<OperationDefinition>) 
   const operationId = Argument.string("operation-id").pipe(
     Argument.withDescription("The exact OpenAPI operationId to describe"),
   )
-  const describe = Command.make("describe", { family, operationId }, ({ family, operationId }) => {
-    const definition = definitions.find(
-      (candidate) => candidate.family === family && candidate.operationId === operationId,
-    )
-    return definition === undefined
-      ? Effect.fail(
-          new CliError.InvalidValue({
-            expected: `an OpenAPI operationId in the ${family} family`,
-            kind: "argument",
-            option: "operation-id",
-            value: operationId,
-          }),
-        )
-      : renderSuccess("operations.describe", definition)
-  }).pipe(Command.withDescription("Describe one generated Spiko Operation"))
+  const summary = Flag.boolean("summary").pipe(
+    Flag.withDescription("Omit request and response JSON Schemas for a token-light description"),
+  )
+  const describe = Command.make(
+    "describe",
+    { family, operationId, summary },
+    ({ family, operationId, summary }) => {
+      const definition = definitions.find(
+        (candidate) => candidate.family === family && candidate.operationId === operationId,
+      )
+      return definition === undefined
+        ? Effect.fail(
+            new CliError.InvalidValue({
+              expected: `an OpenAPI operationId in the ${family} family`,
+              kind: "argument",
+              option: "operation-id",
+              value: operationId,
+            }),
+          )
+        : renderSuccess(
+            "operations.describe",
+            ["operations", "describe"],
+            summary ? summarizeDefinition(definition) : definition,
+          )
+    },
+  ).pipe(Command.withDescription("Describe one generated Spiko Operation"))
 
   return Command.make("operations").pipe(
     Command.withSubcommands([list, describe]),
     Command.withDescription("Inspect the generated Operation Catalog"),
   )
+}
+
+/**
+ * Remediation hints derived from the failure cause, appended to every error
+ * envelope so agents can self-correct without another discovery round-trip.
+ */
+const failureSuggestions = (
+  cause: unknown,
+  definitions: ReadonlyArray<OperationDefinition>,
+): Array<string> => {
+  if (
+    cause instanceof OperationFailure ||
+    cause instanceof OperationInputFailure ||
+    cause instanceof OperationInternalFailure
+  ) {
+    return failureSuggestions(cause.cause, definitions)
+  }
+  if (CliError.isCliError(cause)) {
+    if (cause._tag === "ShowHelp") {
+      // Recurse into the child parse errors, then re-add the describe hint
+      // resolved from THIS error's commandPath — child errors carry no path,
+      // so without this the hint would fall back to "cli" and lose the
+      // operation-specific pointer.
+      return [
+        ...cause.errors.flatMap((error) => failureSuggestions(error, definitions)),
+        ...describeHint(cause, definitions),
+      ]
+    }
+    if (cause._tag === "UnrecognizedOption") {
+      return unique([
+        ...cause.suggestions.map((suggestion) => `Did you mean ${suggestion}?`),
+        "Run 'spiko agent schema' to list commands and flags.",
+      ])
+    }
+    if (cause._tag === "UnknownSubcommand") {
+      return unique([
+        ...cause.suggestions.map((suggestion) => `Did you mean '${suggestion}'?`),
+        "Run 'spiko agent schema' to list commands and flags.",
+      ])
+    }
+    if (cause._tag === "MissingOption") {
+      const flag = cause.option.startsWith("-") ? cause.option : `--${cause.option}`
+      return [`Supply the required flag ${flag}.`, ...describeHint(cause, definitions)]
+    }
+    if (cause._tag === "MissingArgument") {
+      return [
+        `Supply the required argument <${cause.argument}>.`,
+        "Run 'spiko agent schema' to list commands and arguments.",
+      ]
+    }
+    if (cause._tag === "InvalidValue") {
+      if (cause.option === "confirm") {
+        return ["Re-run with --confirm to allow this mutating Spiko Operation."]
+      }
+      if (cause.option === "operation-id") {
+        return ["Run 'spiko operations list <family>' to see valid operationIds."]
+      }
+      // Positional arguments are not flags; word the hint accordingly.
+      const target = cause.kind === "argument" ? `<${cause.option}>` : `--${cause.option}`
+      return [`Provide ${cause.expected} for ${target}.`, ...describeHint(cause, definitions)]
+    }
+  }
+  return []
+}
+
+const unique = (values: ReadonlyArray<string>): Array<string> => [...new Set(values)]
+
+/** Point at the described operation when the failing command maps to one. */
+const describeHint = (
+  cause: unknown,
+  definitions: ReadonlyArray<OperationDefinition>,
+): Array<string> => {
+  const candidates = definitions.find(
+    (definition) => definition.operationId === operationForFailure(cause, definitions),
+  )
+  return candidates === undefined
+    ? []
+    : [
+        `Run 'spiko operations describe ${candidates.family} "${candidates.operationId}"' for exact input requirements.`,
+      ]
 }
 
 const failureCode = (
@@ -397,6 +547,7 @@ const renderFailure = (
   definitions: ReadonlyArray<OperationDefinition>,
 ): number => {
   const code = failureCode(cause)
+  const suggestions = unique(failureSuggestions(cause, definitions))
   console.error(
     JSON.stringify(
       {
@@ -404,6 +555,7 @@ const renderFailure = (
           code,
           details: [],
           message: failureMessage(cause),
+          ...(suggestions.length > 0 ? { suggestions } : {}),
         },
         ok: false,
         operation: operationForFailure(cause, definitions),
@@ -528,13 +680,88 @@ export const makeCli = <
     investor: operations.investor.map((operation) => operation.provide(operationLayers.investor)),
     public: operations.public.map((operation) => operation.provide(operationLayers.public)),
   })
+  const agentSchemaCommand = Command.make(
+    "schema",
+    {
+      compact: Flag.boolean("compact").pipe(
+        Flag.withDescription("Emit command names and flags only, without descriptions"),
+      ),
+    },
+    ({ compact }) =>
+      renderSuccess(
+        "agent.schema",
+        ["agent", "schema"],
+        buildAgentSchema(definitions, { compact, version }),
+      ),
+  ).pipe(
+    Command.withDescription("Emit a machine-readable schema of every Spiko command for AI agents"),
+  )
+  const agentCommand = Command.make("agent").pipe(
+    Command.withSubcommands([agentSchemaCommand]),
+    Command.withDescription("Machine-readable discovery output for AI agents"),
+  )
   const rootCommand = Command.make("spiko").pipe(
-    Command.withSubcommands([operationsCommand, callCommand]),
+    Command.withSubcommands([operationsCommand, callCommand, agentCommand]),
     Command.withDescription("Discover and invoke Spiko Operations"),
   )
 
-  const run = (args: ReadonlyArray<string>) =>
+  // Agent-aware replacement for the built-in --help action: identical flag
+  // grammar, but when AgentMode is on it renders a scoped JSON schema instead
+  // of text help. The action succeeds normally, so the buffered-console flush
+  // path emits its output.
+  const agentAwareHelp = GlobalFlag.action({
+    flag: Flag.boolean("help").pipe(
+      Flag.withAlias("h"),
+      Flag.withDescription("Show help information"),
+    ),
+    run: (value, context) =>
+      Effect.gen(function* () {
+        const agentMode = yield* AgentMode
+        if (!agentMode) {
+          yield* GlobalFlag.Help.run(value, context)
+          return
+        }
+        yield* Console.log(
+          JSON.stringify(
+            buildAgentSchema(definitions, { path: context.commandPath.slice(1), version }),
+            null,
+            2,
+          ),
+        )
+      }),
+  })
+  const cliConfig = CliConfig.make({
+    builtIns: [
+      agentAwareHelp,
+      GlobalFlag.Version,
+      GlobalFlag.Wizard,
+      GlobalFlag.Completions,
+      GlobalFlag.LogLevel,
+    ],
+  })
+
+  const run = (rawArgs: ReadonlyArray<string>, options?: { readonly env?: EnvironmentVariables }) =>
     Console.consoleWith((console) => {
+      // Agent-mode flags are stripped before grammar parsing; the resolved
+      // mode is published through the AgentMode reference so every handler
+      // renders output consistently. The environment source is injectable so
+      // tests stay deterministic regardless of the host shell.
+      const { args, explicit } = extractAgentFlags(rawArgs)
+      // Effect v4 invokes flatMap callbacks as (value, fiber); an optional
+      // positional env parameter would silently capture that fiber, so the
+      // test seam is an options object instead.
+      const agentMode = resolveAgentMode(explicit, options?.env ?? process.env)
+      const showAgentSchema = (commandPath: ReadonlyArray<string>): Effect.Effect<number> =>
+        Effect.sync(() => {
+          console.log(
+            JSON.stringify(
+              buildAgentSchema(definitions, { path: commandPath.slice(1), version }),
+              null,
+              2,
+            ),
+          )
+          return 0
+        })
       const buffered: Array<(console: Console.Console) => void> = []
       const bufferedConsole: Console.Console = Object.assign(Object.create(console), {
         error: (...values: ReadonlyArray<unknown>) => {
@@ -555,6 +782,8 @@ export const makeCli = <
           renderErrors: false,
           version,
         })(commandArgs).pipe(
+          Effect.provideService(AgentMode, agentMode),
+          Effect.provideService(CliConfig.CliConfig, cliConfig),
           Effect.provideService(Console.Console, bufferedConsole),
           Effect.matchCauseEffect({
             onFailure: (cause) => {
@@ -562,17 +791,22 @@ export const makeCli = <
                 return Effect.failCause(cause)
               }
               const failure = Cause.squash(cause)
-              return CliError.isCliError(failure) &&
+              if (
+                CliError.isCliError(failure) &&
                 failure._tag === "ShowHelp" &&
                 failure.errors.length === 0
-                ? flush.pipe(Effect.as(0))
-                : Effect.sync(() => renderFailure(console, failure, definitions))
+              ) {
+                // In agent mode structured JSON help replaces rendered text;
+                // the buffered text help is intentionally discarded.
+                return agentMode ? showAgentSchema(failure.commandPath) : flush.pipe(Effect.as(0))
+              }
+              return Effect.sync(() => renderFailure(console, failure, definitions))
             },
             onSuccess: () => flush.pipe(Effect.as(0)),
           }),
         )
 
-      const wizardRequested = args.some(
+      const wizardRequested = rawArgs.some(
         (argument) => argument === "--wizard" || argument.startsWith("--wizard="),
       )
       if (!wizardRequested) {
