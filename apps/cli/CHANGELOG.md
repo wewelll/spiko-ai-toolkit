@@ -1,5 +1,11 @@
 # spiko-cli
 
+## 0.4.1
+
+### Patch Changes
+
+- [#16](https://github.com/wewelll/spiko-ai-toolkit/pull/16) [`7b3fcc4`](https://github.com/wewelll/spiko-ai-toolkit/commit/7b3fcc43b22cea77de5cbc31005708f8425c46d1) Thanks [@wewelll](https://github.com/wewelll)! - Preserve configured HTTP client transformations for generated binary stream operations.
+
 ## 0.4.0
 
 ### Minor Changes
