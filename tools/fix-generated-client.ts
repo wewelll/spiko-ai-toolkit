@@ -1,16 +1,5 @@
 export type GeneratedClientFamily = "distributor" | "investor" | "public"
 
-// Operation IDs (camelized client method names) whose binary success responses
-// are manually corrected below. The OpenAPI documents are the source of truth:
-// generate-clients.ts fails when this manifest and the committed specs drift.
-export const correctedBinaryResponseOperations: Readonly<
-  Record<GeneratedClientFamily, ReadonlySet<string>>
-> = {
-  distributor: new Set(["accountingPositionsDownloadAccountStatement"]),
-  investor: new Set(["accountingPositionsDownloadAccountStatement"]),
-  public: new Set(),
-}
-
 const replaceExactlyOnce = (
   label: string,
   source: string,
@@ -43,26 +32,6 @@ const applyCorrections = (
     generated,
   )
 
-// The Spiko account-statement Operations declare `application/pdf` success
-// content, which the generator cannot decode: it emits no "2xx" matcher arm and
-// types the success value as void, so a successful download would fail as an
-// unexpected status. Patch in a raw-bytes matcher arm and widen the declared
-// success type to Uint8Array for every family exposing that Operation.
-const accountStatementPdfCorrections: ReadonlyArray<Correction> = [
-  {
-    expected:
-      'withResponse(options.config)(HttpClientResponse.matchStatus({\n      "400": decodeError("AccountingPositionsDownloadAccountStatement400", AccountingPositionsDownloadAccountStatement400),',
-    replacement:
-      'withResponse(options.config)(HttpClientResponse.matchStatus({\n      "2xx": (response) => Effect.map(response.arrayBuffer, (buffer) => new Uint8Array(buffer)),\n      "400": decodeError("AccountingPositionsDownloadAccountStatement400", AccountingPositionsDownloadAccountStatement400),',
-  },
-  {
-    expected:
-      'readonly "accountingPositionsDownloadAccountStatement": <Config extends OperationConfig>(options: { readonly params: typeof AccountingPositionsDownloadAccountStatementParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<void, Config>,',
-    replacement:
-      'readonly "accountingPositionsDownloadAccountStatement": <Config extends OperationConfig>(options: { readonly params: typeof AccountingPositionsDownloadAccountStatementParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<Uint8Array, Config>,',
-  },
-]
-
 const fixDistributor = (generated: string): string =>
   applyCorrections("Distributor generated client", generated, [
     // The Distributor spec models uploaded files as {"type": "string", "format":
@@ -83,11 +52,9 @@ const fixDistributor = (generated: string): string =>
       expected: "HttpClientRequest.bodyFormData(options.payload as any)",
       replacement: "HttpClientRequest.bodyFormDataRecord(options.payload)",
     },
-    ...accountStatementPdfCorrections,
   ])
 
-const fixInvestor = (generated: string): string =>
-  applyCorrections("Investor generated client", generated, accountStatementPdfCorrections)
+const fixInvestor = (generated: string): string => generated
 
 export const fixGeneratedClient = (family: GeneratedClientFamily, generated: string): string => {
   switch (family) {

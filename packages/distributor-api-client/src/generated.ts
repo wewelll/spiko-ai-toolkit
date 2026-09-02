@@ -4,7 +4,8 @@ import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
 import type { SchemaError } from "effect/Schema"
 import * as Schema from "effect/Schema"
-import type * as HttpClient from "effect/unstable/http/HttpClient"
+import * as Stream from "effect/Stream"
+import * as HttpClient from "effect/unstable/http/HttpClient"
 import * as HttpClientError from "effect/unstable/http/HttpClientError"
 import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest"
 import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse"
@@ -771,6 +772,16 @@ export const make = (
           )
       : (request) => Effect.flatMap(httpClient.execute(request), withOptionalResponse)
   }
+  const decodeBinary = (response: HttpClientResponse.HttpClientResponse) =>
+    Effect.map(response.arrayBuffer, (buffer) => new Uint8Array(buffer))
+  const binaryRequest = (request: HttpClientRequest.HttpClientRequest): Stream.Stream<Uint8Array, HttpClientError.HttpClientError> =>
+    HttpClient.filterStatusOk(httpClient).execute(request).pipe(
+      Effect.map((response) => response.stream),
+      Stream.unwrap
+    )
+  const decodeVoidError = <const Tag extends string>(tag: Tag) =>
+    (response: HttpClientResponse.HttpClientResponse) =>
+      Effect.fail(SpikoDistributorApiError(tag, undefined, response))
   const decodeSuccess =
     <Schema extends Schema.Constraint>(schema: Schema) =>
     (response: HttpClientResponse.HttpClientResponse) =>
@@ -811,7 +822,7 @@ export const make = (
       "400": decodeError("InvestorsCreateInvestor400", InvestorsCreateInvestor400),
       "401": decodeError("InvestorsCreateInvestor401", InvestorsCreateInvestor401),
       "403": decodeError("InvestorsCreateInvestor403", InvestorsCreateInvestor403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -821,7 +832,7 @@ export const make = (
       "400": decodeError("InvestorsGetInvestor400", InvestorsGetInvestor400),
       "401": decodeError("InvestorsGetInvestor401", InvestorsGetInvestor401),
       "403": decodeError("InvestorsGetInvestor403", InvestorsGetInvestor403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -832,7 +843,7 @@ export const make = (
       "400": decodeError("InvestorsUpdateInvestor400", InvestorsUpdateInvestor400),
       "401": decodeError("InvestorsUpdateInvestor401", InvestorsUpdateInvestor401),
       "403": decodeError("InvestorsUpdateInvestor403", InvestorsUpdateInvestor403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -843,7 +854,7 @@ export const make = (
       "400": decodeError("AccountsGetAccounts400", AccountsGetAccounts400),
       "401": decodeError("AccountsGetAccounts401", AccountsGetAccounts401),
       "403": decodeError("AccountsGetAccounts403", AccountsGetAccounts403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -854,7 +865,7 @@ export const make = (
       "400": decodeError("AccountsCreateAccount400", AccountsCreateAccount400),
       "401": decodeError("AccountsCreateAccount401", AccountsCreateAccount401),
       "403": decodeError("AccountsCreateAccount403", AccountsCreateAccount403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -865,8 +876,8 @@ export const make = (
       "400": decodeError("AccountsAddAccountLine400", AccountsAddAccountLine400),
       "401": decodeError("AccountsAddAccountLine401", AccountsAddAccountLine401),
       "403": decodeError("AccountsAddAccountLine403", AccountsAddAccountLine403),
-      "404": () => Effect.void,
-      "409": () => Effect.void,
+      "404": decodeVoidError("404"),
+      "409": decodeVoidError("409"),
       orElse: unexpectedStatus
     }))
   ),
@@ -877,8 +888,8 @@ export const make = (
       "400": decodeError("AccountsCreateExternalAccount400", AccountsCreateExternalAccount400),
       "401": decodeError("AccountsCreateExternalAccount401", AccountsCreateExternalAccount401),
       "403": decodeError("AccountsCreateExternalAccount403", AccountsCreateExternalAccount403),
-      "404": () => Effect.void,
-      "409": () => Effect.void,
+      "404": decodeVoidError("404"),
+      "409": decodeVoidError("409"),
       orElse: unexpectedStatus
     }))
   ),
@@ -888,7 +899,7 @@ export const make = (
       "400": decodeError("AccountsGetAccount400", AccountsGetAccount400),
       "401": decodeError("AccountsGetAccount401", AccountsGetAccount401),
       "403": decodeError("AccountsGetAccount403", AccountsGetAccount403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -899,7 +910,7 @@ export const make = (
       "400": decodeError("AccountsGetDepositInstructions400", AccountsGetDepositInstructions400),
       "401": decodeError("AccountsGetDepositInstructions401", AccountsGetDepositInstructions401),
       "403": decodeError("AccountsGetDepositInstructions403", AccountsGetDepositInstructions403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -910,8 +921,8 @@ export const make = (
       "400": decodeError("DepositOrdersGetDepositOrders400", DepositOrdersGetDepositOrders400),
       "401": decodeError("DepositOrdersGetDepositOrders401", DepositOrdersGetDepositOrders401),
       "403": decodeError("DepositOrdersGetDepositOrders403", DepositOrdersGetDepositOrders403),
-      "404": () => Effect.void,
-      "500": () => Effect.void,
+      "404": decodeVoidError("404"),
+      "500": decodeVoidError("500"),
       orElse: unexpectedStatus
     }))
   ),
@@ -924,7 +935,7 @@ export const make = (
       "403": decodeError("DepositOrdersCreateDepositOrder403", DepositOrdersCreateDepositOrder403),
       "409": decodeError("DepositOrdersCreateDepositOrder409", DepositOrdersCreateDepositOrder409),
       "422": decodeError("DepositOrdersCreateDepositOrder422", DepositOrdersCreateDepositOrder422),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -934,7 +945,7 @@ export const make = (
       "400": decodeError("DepositOrdersGetDepositOrder400", DepositOrdersGetDepositOrder400),
       "401": decodeError("DepositOrdersGetDepositOrder401", DepositOrdersGetDepositOrder401),
       "403": decodeError("DepositOrdersGetDepositOrder403", DepositOrdersGetDepositOrder403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -945,8 +956,8 @@ export const make = (
       "400": decodeError("DepositOrdersGetDepositOrderSubscriptionForm400", DepositOrdersGetDepositOrderSubscriptionForm400),
       "401": decodeError("DepositOrdersGetDepositOrderSubscriptionForm401", DepositOrdersGetDepositOrderSubscriptionForm401),
       "403": decodeError("DepositOrdersGetDepositOrderSubscriptionForm403", DepositOrdersGetDepositOrderSubscriptionForm403),
-      "404": () => Effect.void,
-      "500": () => Effect.void,
+      "404": decodeVoidError("404"),
+      "500": decodeVoidError("500"),
       orElse: unexpectedStatus
     }))
   ),
@@ -957,7 +968,7 @@ export const make = (
       "400": decodeError("DepositOrdersGetAllDistributorDepositOrders400", DepositOrdersGetAllDistributorDepositOrders400),
       "401": decodeError("DepositOrdersGetAllDistributorDepositOrders401", DepositOrdersGetAllDistributorDepositOrders401),
       "403": decodeError("DepositOrdersGetAllDistributorDepositOrders403", DepositOrdersGetAllDistributorDepositOrders403),
-      "500": () => Effect.void,
+      "500": decodeVoidError("500"),
       orElse: unexpectedStatus
     }))
   ),
@@ -967,8 +978,8 @@ export const make = (
       "400": decodeError("DepositOrdersCancelDepositOrder400", DepositOrdersCancelDepositOrder400),
       "401": decodeError("DepositOrdersCancelDepositOrder401", DepositOrdersCancelDepositOrder401),
       "403": decodeError("DepositOrdersCancelDepositOrder403", DepositOrdersCancelDepositOrder403),
-      "404": () => Effect.void,
-      "500": () => Effect.void,
+      "404": decodeVoidError("404"),
+      "500": decodeVoidError("500"),
       orElse: unexpectedStatus
     }))
   ),
@@ -979,7 +990,7 @@ export const make = (
       "400": decodeError("WithdrawalOrdersGetWithdrawalOrders400", WithdrawalOrdersGetWithdrawalOrders400),
       "401": decodeError("WithdrawalOrdersGetWithdrawalOrders401", WithdrawalOrdersGetWithdrawalOrders401),
       "403": decodeError("WithdrawalOrdersGetWithdrawalOrders403", WithdrawalOrdersGetWithdrawalOrders403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -992,7 +1003,7 @@ export const make = (
       "403": decodeError("WithdrawalOrdersCreateWithdrawalOrder403", WithdrawalOrdersCreateWithdrawalOrder403),
       "409": decodeError("WithdrawalOrdersCreateWithdrawalOrder409", WithdrawalOrdersCreateWithdrawalOrder409),
       "422": decodeError("WithdrawalOrdersCreateWithdrawalOrder422", WithdrawalOrdersCreateWithdrawalOrder422),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1002,7 +1013,7 @@ export const make = (
       "400": decodeError("WithdrawalOrdersGetWithdrawalOrder400", WithdrawalOrdersGetWithdrawalOrder400),
       "401": decodeError("WithdrawalOrdersGetWithdrawalOrder401", WithdrawalOrdersGetWithdrawalOrder401),
       "403": decodeError("WithdrawalOrdersGetWithdrawalOrder403", WithdrawalOrdersGetWithdrawalOrder403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1022,8 +1033,8 @@ export const make = (
       "400": decodeError("WithdrawalOrdersCancelWithdrawalOrder400", WithdrawalOrdersCancelWithdrawalOrder400),
       "401": decodeError("WithdrawalOrdersCancelWithdrawalOrder401", WithdrawalOrdersCancelWithdrawalOrder401),
       "403": decodeError("WithdrawalOrdersCancelWithdrawalOrder403", WithdrawalOrdersCancelWithdrawalOrder403),
-      "404": () => Effect.void,
-      "500": () => Effect.void,
+      "404": decodeVoidError("404"),
+      "500": decodeVoidError("500"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1034,7 +1045,7 @@ export const make = (
       "400": decodeError("SwapOrdersGetSwapOrders400", SwapOrdersGetSwapOrders400),
       "401": decodeError("SwapOrdersGetSwapOrders401", SwapOrdersGetSwapOrders401),
       "403": decodeError("SwapOrdersGetSwapOrders403", SwapOrdersGetSwapOrders403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1045,7 +1056,7 @@ export const make = (
       "400": decodeError("SwapOrdersCreateSwapOrder400", SwapOrdersCreateSwapOrder400),
       "401": decodeError("SwapOrdersCreateSwapOrder401", SwapOrdersCreateSwapOrder401),
       "403": decodeError("SwapOrdersCreateSwapOrder403", SwapOrdersCreateSwapOrder403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1055,7 +1066,7 @@ export const make = (
       "400": decodeError("SwapOrdersGetSwapOrder400", SwapOrdersGetSwapOrder400),
       "401": decodeError("SwapOrdersGetSwapOrder401", SwapOrdersGetSwapOrder401),
       "403": decodeError("SwapOrdersGetSwapOrder403", SwapOrdersGetSwapOrder403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1075,7 +1086,7 @@ export const make = (
       "400": decodeError("SwapOrdersCancelSwapOrder400", SwapOrdersCancelSwapOrder400),
       "401": decodeError("SwapOrdersCancelSwapOrder401", SwapOrdersCancelSwapOrder401),
       "403": decodeError("SwapOrdersCancelSwapOrder403", SwapOrdersCancelSwapOrder403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1096,7 +1107,7 @@ export const make = (
       "400": decodeError("PortfoliosGetPortfolio400", PortfoliosGetPortfolio400),
       "401": decodeError("PortfoliosGetPortfolio401", PortfoliosGetPortfolio401),
       "403": decodeError("PortfoliosGetPortfolio403", PortfoliosGetPortfolio403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1107,7 +1118,7 @@ export const make = (
       "400": decodeError("BankAccountsGetBankAccounts400", BankAccountsGetBankAccounts400),
       "401": decodeError("BankAccountsGetBankAccounts401", BankAccountsGetBankAccounts401),
       "403": decodeError("BankAccountsGetBankAccounts403", BankAccountsGetBankAccounts403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1118,7 +1129,7 @@ export const make = (
       "400": decodeError("BankAccountsAddBankAccount400", BankAccountsAddBankAccount400),
       "401": decodeError("BankAccountsAddBankAccount401", BankAccountsAddBankAccount401),
       "403": decodeError("BankAccountsAddBankAccount403", BankAccountsAddBankAccount403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1128,7 +1139,7 @@ export const make = (
       "400": decodeError("BankAccountsGetBankAccount400", BankAccountsGetBankAccount400),
       "401": decodeError("BankAccountsGetBankAccount401", BankAccountsGetBankAccount401),
       "403": decodeError("BankAccountsGetBankAccount403", BankAccountsGetBankAccount403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1138,7 +1149,7 @@ export const make = (
       "400": decodeError("BankAccountsArchiveBankAccount400", BankAccountsArchiveBankAccount400),
       "401": decodeError("BankAccountsArchiveBankAccount401", BankAccountsArchiveBankAccount401),
       "403": decodeError("BankAccountsArchiveBankAccount403", BankAccountsArchiveBankAccount403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1149,7 +1160,7 @@ export const make = (
       "400": decodeError("BankAccountsUploadBankAccountProofDocument400", BankAccountsUploadBankAccountProofDocument400),
       "401": decodeError("BankAccountsUploadBankAccountProofDocument401", BankAccountsUploadBankAccountProofDocument401),
       "403": decodeError("BankAccountsUploadBankAccountProofDocument403", BankAccountsUploadBankAccountProofDocument403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1160,21 +1171,25 @@ export const make = (
       "400": decodeError("AccountingPositionsGetAccountingPositionsHistory400", AccountingPositionsGetAccountingPositionsHistory400),
       "401": decodeError("AccountingPositionsGetAccountingPositionsHistory401", AccountingPositionsGetAccountingPositionsHistory401),
       "403": decodeError("AccountingPositionsGetAccountingPositionsHistory403", AccountingPositionsGetAccountingPositionsHistory403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
     "accountingPositionsDownloadAccountStatement": (options) => HttpClientRequest.get(`/v0/accounting-positions/account-statement`).pipe(
     HttpClientRequest.setUrlParams({ "investorId": options.params["investorId"] as any, "shareClassId": options.params["shareClassId"] as any, "from": options.params["from"] as any, "to": options.params["to"] as any, "locale": options.params["locale"] as any }),
     withResponse(options.config)(HttpClientResponse.matchStatus({
-      "2xx": (response) => Effect.map(response.arrayBuffer, (buffer) => new Uint8Array(buffer)),
+      "2xx": decodeBinary,
       "400": decodeError("AccountingPositionsDownloadAccountStatement400", AccountingPositionsDownloadAccountStatement400),
       "401": decodeError("AccountingPositionsDownloadAccountStatement401", AccountingPositionsDownloadAccountStatement401),
       "403": decodeError("AccountingPositionsDownloadAccountStatement403", AccountingPositionsDownloadAccountStatement403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
+    "accountingPositionsDownloadAccountStatementStream": (options) => HttpClientRequest.get(`/v0/accounting-positions/account-statement`).pipe(
+      HttpClientRequest.setUrlParams({ "investorId": options.params["investorId"] as any, "shareClassId": options.params["shareClassId"] as any, "from": options.params["from"] as any, "to": options.params["to"] as any, "locale": options.params["locale"] as any }),
+      binaryRequest
+    ),
     "yieldsGetYieldHistory": (options) => HttpClientRequest.get(`/v0/yields/history`).pipe(
     HttpClientRequest.setUrlParams({ "investorId": options.params["investorId"] as any, "accountId": options.params["accountId"] as any, "shareClassId": options.params["shareClassId"] as any, "from": options.params["from"] as any, "to": options.params["to"] as any }),
     withResponse(options.config)(HttpClientResponse.matchStatus({
@@ -1183,7 +1198,7 @@ export const make = (
       "401": decodeError("YieldsGetYieldHistory401", YieldsGetYieldHistory401),
       "403": decodeError("YieldsGetYieldHistory403", YieldsGetYieldHistory403),
       "422": decodeError("YieldsGetYieldHistory422", YieldsGetYieldHistory422),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1193,7 +1208,7 @@ export const make = (
       "400": decodeError("YieldsGetYield400", YieldsGetYield400),
       "401": decodeError("YieldsGetYield401", YieldsGetYield401),
       "403": decodeError("YieldsGetYield403", YieldsGetYield403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1203,7 +1218,7 @@ export const make = (
       "400": decodeError("UsersGetUsersOfInvestor400", UsersGetUsersOfInvestor400),
       "401": decodeError("UsersGetUsersOfInvestor401", UsersGetUsersOfInvestor401),
       "403": decodeError("UsersGetUsersOfInvestor403", UsersGetUsersOfInvestor403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1215,7 +1230,7 @@ export const make = (
       "401": decodeError("UsersCreateInvestorInvitation401", UsersCreateInvestorInvitation401),
       "403": decodeError("UsersCreateInvestorInvitation403", UsersCreateInvestorInvitation403),
       "409": decodeError("UsersCreateInvestorInvitation409", UsersCreateInvestorInvitation409),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1225,7 +1240,7 @@ export const make = (
       "400": decodeError("UsersGetPendingInvitationsOfInvestor400", UsersGetPendingInvitationsOfInvestor400),
       "401": decodeError("UsersGetPendingInvitationsOfInvestor401", UsersGetPendingInvitationsOfInvestor401),
       "403": decodeError("UsersGetPendingInvitationsOfInvestor403", UsersGetPendingInvitationsOfInvestor403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1235,7 +1250,7 @@ export const make = (
       "400": decodeError("UsersGetInvitationOfInvestor400", UsersGetInvitationOfInvestor400),
       "401": decodeError("UsersGetInvitationOfInvestor401", UsersGetInvitationOfInvestor401),
       "403": decodeError("UsersGetInvitationOfInvestor403", UsersGetInvitationOfInvestor403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1245,7 +1260,7 @@ export const make = (
       "401": decodeError("UsersUnlinkUser401", UsersUnlinkUser401),
       "403": decodeError("UsersUnlinkUser403", UsersUnlinkUser403),
       "204": () => Effect.void,
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1255,7 +1270,7 @@ export const make = (
       "401": decodeError("UsersDeleteInvitation401", UsersDeleteInvitation401),
       "403": decodeError("UsersDeleteInvitation403", UsersDeleteInvitation403),
       "204": () => Effect.void,
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1265,7 +1280,7 @@ export const make = (
       "401": decodeError("UsersResendInvitation401", UsersResendInvitation401),
       "403": decodeError("UsersResendInvitation403", UsersResendInvitation403),
       "204": () => Effect.void,
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1276,7 +1291,7 @@ export const make = (
       "400": decodeError("AccountTransactionsGetAccountTransactions400", AccountTransactionsGetAccountTransactions400),
       "401": decodeError("AccountTransactionsGetAccountTransactions401", AccountTransactionsGetAccountTransactions401),
       "403": decodeError("AccountTransactionsGetAccountTransactions403", AccountTransactionsGetAccountTransactions403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1304,7 +1319,7 @@ export const make = (
       "400": decodeError("DistributorInvestorContractsGetDistributorInvestorContract400", DistributorInvestorContractsGetDistributorInvestorContract400),
       "401": decodeError("DistributorInvestorContractsGetDistributorInvestorContract401", DistributorInvestorContractsGetDistributorInvestorContract401),
       "403": decodeError("DistributorInvestorContractsGetDistributorInvestorContract403", DistributorInvestorContractsGetDistributorInvestorContract403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1315,7 +1330,7 @@ export const make = (
       "400": decodeError("DistributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClass400", DistributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClass400),
       "401": decodeError("DistributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClass401", DistributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClass401),
       "403": decodeError("DistributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClass403", DistributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClass403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1326,7 +1341,7 @@ export const make = (
       "400": decodeError("DistributorInvestorContractsUpdateDistributorInvestorContractFee400", DistributorInvestorContractsUpdateDistributorInvestorContractFee400),
       "401": decodeError("DistributorInvestorContractsUpdateDistributorInvestorContractFee401", DistributorInvestorContractsUpdateDistributorInvestorContractFee401),
       "403": decodeError("DistributorInvestorContractsUpdateDistributorInvestorContractFee403", DistributorInvestorContractsUpdateDistributorInvestorContractFee403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1337,8 +1352,8 @@ export const make = (
       "400": decodeError("DistributorInvestorContractsCreateDistributorInvestorContract400", DistributorInvestorContractsCreateDistributorInvestorContract400),
       "401": decodeError("DistributorInvestorContractsCreateDistributorInvestorContract401", DistributorInvestorContractsCreateDistributorInvestorContract401),
       "403": decodeError("DistributorInvestorContractsCreateDistributorInvestorContract403", DistributorInvestorContractsCreateDistributorInvestorContract403),
-      "404": () => Effect.void,
-      "405": () => Effect.void,
+      "404": decodeVoidError("404"),
+      "405": decodeVoidError("405"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1349,7 +1364,7 @@ export const make = (
       "400": decodeError("DistributorInvestorContractsGetPaidFees400", DistributorInvestorContractsGetPaidFees400),
       "401": decodeError("DistributorInvestorContractsGetPaidFees401", DistributorInvestorContractsGetPaidFees401),
       "403": decodeError("DistributorInvestorContractsGetPaidFees403", DistributorInvestorContractsGetPaidFees403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1360,7 +1375,7 @@ export const make = (
       "400": decodeError("InvestorTokensCreateInvestorToken400", InvestorTokensCreateInvestorToken400),
       "401": decodeError("InvestorTokensCreateInvestorToken401", InvestorTokensCreateInvestorToken401),
       "403": decodeError("InvestorTokensCreateInvestorToken403", InvestorTokensCreateInvestorToken403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1390,7 +1405,7 @@ export const make = (
       "400": decodeError("WebhookConfigurationsUpdateWebhookConfiguration400", WebhookConfigurationsUpdateWebhookConfiguration400),
       "401": decodeError("WebhookConfigurationsUpdateWebhookConfiguration401", WebhookConfigurationsUpdateWebhookConfiguration401),
       "403": decodeError("WebhookConfigurationsUpdateWebhookConfiguration403", WebhookConfigurationsUpdateWebhookConfiguration403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1400,7 +1415,7 @@ export const make = (
       "400": decodeError("WebhookConfigurationsDisableWebhookConfiguration400", WebhookConfigurationsDisableWebhookConfiguration400),
       "401": decodeError("WebhookConfigurationsDisableWebhookConfiguration401", WebhookConfigurationsDisableWebhookConfiguration401),
       "403": decodeError("WebhookConfigurationsDisableWebhookConfiguration403", WebhookConfigurationsDisableWebhookConfiguration403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1410,7 +1425,7 @@ export const make = (
       "400": decodeError("WebhookConfigurationsEnableWebhookConfiguration400", WebhookConfigurationsEnableWebhookConfiguration400),
       "401": decodeError("WebhookConfigurationsEnableWebhookConfiguration401", WebhookConfigurationsEnableWebhookConfiguration401),
       "403": decodeError("WebhookConfigurationsEnableWebhookConfiguration403", WebhookConfigurationsEnableWebhookConfiguration403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1420,7 +1435,7 @@ export const make = (
       "400": decodeError("WebhookConfigurationsRotateWebhookSigningSecret400", WebhookConfigurationsRotateWebhookSigningSecret400),
       "401": decodeError("WebhookConfigurationsRotateWebhookSigningSecret401", WebhookConfigurationsRotateWebhookSigningSecret401),
       "403": decodeError("WebhookConfigurationsRotateWebhookSigningSecret403", WebhookConfigurationsRotateWebhookSigningSecret403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1441,7 +1456,7 @@ export const make = (
       "400": decodeError("InvestorDocumentsGetInvestorDocuments400", InvestorDocumentsGetInvestorDocuments400),
       "401": decodeError("InvestorDocumentsGetInvestorDocuments401", InvestorDocumentsGetInvestorDocuments401),
       "403": decodeError("InvestorDocumentsGetInvestorDocuments403", InvestorDocumentsGetInvestorDocuments403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1452,7 +1467,7 @@ export const make = (
       "400": decodeError("InvestorDocumentsUploadInvestorDocument400", InvestorDocumentsUploadInvestorDocument400),
       "401": decodeError("InvestorDocumentsUploadInvestorDocument401", InvestorDocumentsUploadInvestorDocument401),
       "403": decodeError("InvestorDocumentsUploadInvestorDocument403", InvestorDocumentsUploadInvestorDocument403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1462,7 +1477,7 @@ export const make = (
       "400": decodeError("InvestorDocumentsDownloadInvestorDocument400", InvestorDocumentsDownloadInvestorDocument400),
       "401": decodeError("InvestorDocumentsDownloadInvestorDocument401", InvestorDocumentsDownloadInvestorDocument401),
       "403": decodeError("InvestorDocumentsDownloadInvestorDocument403", InvestorDocumentsDownloadInvestorDocument403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -1472,7 +1487,7 @@ export const make = (
       "400": decodeError("WalletsGetWallet400", WalletsGetWallet400),
       "401": decodeError("WalletsGetWallet401", WalletsGetWallet401),
       "403": decodeError("WalletsGetWallet403", WalletsGetWallet403),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   )
@@ -1509,31 +1524,31 @@ readonly "investorsGetAllInvestors": <Config extends OperationConfig>(options: {
 *
 * Register a new investor with the platform. Returns the complete investor profile including generated UUID identifier.
 */
-readonly "investorsCreateInvestor": <Config extends OperationConfig>(options: { readonly payload: typeof InvestorsCreateInvestorRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof InvestorsCreateInvestor200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"InvestorsCreateInvestor400", typeof InvestorsCreateInvestor400.Type> | SpikoDistributorApiError<"InvestorsCreateInvestor401", typeof InvestorsCreateInvestor401.Type> | SpikoDistributorApiError<"InvestorsCreateInvestor403", typeof InvestorsCreateInvestor403.Type>>
+readonly "investorsCreateInvestor": <Config extends OperationConfig>(options: { readonly payload: typeof InvestorsCreateInvestorRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof InvestorsCreateInvestor200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"InvestorsCreateInvestor400", typeof InvestorsCreateInvestor400.Type> | SpikoDistributorApiError<"InvestorsCreateInvestor401", typeof InvestorsCreateInvestor401.Type> | SpikoDistributorApiError<"InvestorsCreateInvestor403", typeof InvestorsCreateInvestor403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Retrieve detailed information about an investor linked to the distributor.**
 *
 * - Returns the complete investor profile including company or personal details and compliance status.
 */
-readonly "investorsGetInvestor": <Config extends OperationConfig>(id: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof InvestorsGetInvestor200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"InvestorsGetInvestor400", typeof InvestorsGetInvestor400.Type> | SpikoDistributorApiError<"InvestorsGetInvestor401", typeof InvestorsGetInvestor401.Type> | SpikoDistributorApiError<"InvestorsGetInvestor403", typeof InvestorsGetInvestor403.Type>>
+readonly "investorsGetInvestor": <Config extends OperationConfig>(id: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof InvestorsGetInvestor200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"InvestorsGetInvestor400", typeof InvestorsGetInvestor400.Type> | SpikoDistributorApiError<"InvestorsGetInvestor401", typeof InvestorsGetInvestor401.Type> | SpikoDistributorApiError<"InvestorsGetInvestor403", typeof InvestorsGetInvestor403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Modify an existing investor by updating the specified attributes.**
 *
 * - Return the complete investor profile.
 */
-readonly "investorsUpdateInvestor": <Config extends OperationConfig>(id: string, options: { readonly payload: typeof InvestorsUpdateInvestorRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof InvestorsUpdateInvestor200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"InvestorsUpdateInvestor400", typeof InvestorsUpdateInvestor400.Type> | SpikoDistributorApiError<"InvestorsUpdateInvestor401", typeof InvestorsUpdateInvestor401.Type> | SpikoDistributorApiError<"InvestorsUpdateInvestor403", typeof InvestorsUpdateInvestor403.Type>>
+readonly "investorsUpdateInvestor": <Config extends OperationConfig>(id: string, options: { readonly payload: typeof InvestorsUpdateInvestorRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof InvestorsUpdateInvestor200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"InvestorsUpdateInvestor400", typeof InvestorsUpdateInvestor400.Type> | SpikoDistributorApiError<"InvestorsUpdateInvestor401", typeof InvestorsUpdateInvestor401.Type> | SpikoDistributorApiError<"InvestorsUpdateInvestor403", typeof InvestorsUpdateInvestor403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * Retrieve all accounts associated with a specific investor. Returns a list of accounts that can be used for deposits and withdrawals.
 */
-readonly "accountsGetAccounts": <Config extends OperationConfig>(options: { readonly params: typeof AccountsGetAccountsParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof AccountsGetAccounts200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"AccountsGetAccounts400", typeof AccountsGetAccounts400.Type> | SpikoDistributorApiError<"AccountsGetAccounts401", typeof AccountsGetAccounts401.Type> | SpikoDistributorApiError<"AccountsGetAccounts403", typeof AccountsGetAccounts403.Type>>
+readonly "accountsGetAccounts": <Config extends OperationConfig>(options: { readonly params: typeof AccountsGetAccountsParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof AccountsGetAccounts200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"AccountsGetAccounts400", typeof AccountsGetAccounts400.Type> | SpikoDistributorApiError<"AccountsGetAccounts401", typeof AccountsGetAccounts401.Type> | SpikoDistributorApiError<"AccountsGetAccounts403", typeof AccountsGetAccounts403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * Create an account for an investor
 */
-readonly "accountsCreateAccount": <Config extends OperationConfig>(options: { readonly payload: typeof AccountsCreateAccountRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof AccountsCreateAccount200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"AccountsCreateAccount400", typeof AccountsCreateAccount400.Type> | SpikoDistributorApiError<"AccountsCreateAccount401", typeof AccountsCreateAccount401.Type> | SpikoDistributorApiError<"AccountsCreateAccount403", typeof AccountsCreateAccount403.Type>>
+readonly "accountsCreateAccount": <Config extends OperationConfig>(options: { readonly payload: typeof AccountsCreateAccountRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof AccountsCreateAccount200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"AccountsCreateAccount400", typeof AccountsCreateAccount400.Type> | SpikoDistributorApiError<"AccountsCreateAccount401", typeof AccountsCreateAccount401.Type> | SpikoDistributorApiError<"AccountsCreateAccount403", typeof AccountsCreateAccount403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * Add a new line to an internal account for a given share class. This enables the investor to hold and subscribe to that share class within the account. Returns 409 if the account already has a line for the specified share class.
 */
-readonly "accountsAddAccountLine": <Config extends OperationConfig>(accountId: string, options: { readonly payload: typeof AccountsAddAccountLineRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof AccountsAddAccountLine200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"AccountsAddAccountLine400", typeof AccountsAddAccountLine400.Type> | SpikoDistributorApiError<"AccountsAddAccountLine401", typeof AccountsAddAccountLine401.Type> | SpikoDistributorApiError<"AccountsAddAccountLine403", typeof AccountsAddAccountLine403.Type>>
+readonly "accountsAddAccountLine": <Config extends OperationConfig>(accountId: string, options: { readonly payload: typeof AccountsAddAccountLineRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof AccountsAddAccountLine200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"AccountsAddAccountLine400", typeof AccountsAddAccountLine400.Type> | SpikoDistributorApiError<"AccountsAddAccountLine401", typeof AccountsAddAccountLine401.Type> | SpikoDistributorApiError<"AccountsAddAccountLine403", typeof AccountsAddAccountLine403.Type> | SpikoDistributorApiError<"404", undefined> | SpikoDistributorApiError<"409", undefined>>
   /**
 * **Register and authorize one of an investor's own blockchain addresses as an external account.**
 *
@@ -1545,11 +1560,11 @@ readonly "accountsAddAccountLine": <Config extends OperationConfig>(accountId: s
 *
 * > ⚠️ Only register addresses the investor actually controls. Spiko does not verify ownership on this endpoint, and the address is authorized for payouts on your assertion alone.
 */
-readonly "accountsCreateExternalAccount": <Config extends OperationConfig>(options: { readonly payload: typeof AccountsCreateExternalAccountRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof AccountsCreateExternalAccount200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"AccountsCreateExternalAccount400", typeof AccountsCreateExternalAccount400.Type> | SpikoDistributorApiError<"AccountsCreateExternalAccount401", typeof AccountsCreateExternalAccount401.Type> | SpikoDistributorApiError<"AccountsCreateExternalAccount403", typeof AccountsCreateExternalAccount403.Type>>
+readonly "accountsCreateExternalAccount": <Config extends OperationConfig>(options: { readonly payload: typeof AccountsCreateExternalAccountRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof AccountsCreateExternalAccount200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"AccountsCreateExternalAccount400", typeof AccountsCreateExternalAccount400.Type> | SpikoDistributorApiError<"AccountsCreateExternalAccount401", typeof AccountsCreateExternalAccount401.Type> | SpikoDistributorApiError<"AccountsCreateExternalAccount403", typeof AccountsCreateExternalAccount403.Type> | SpikoDistributorApiError<"404", undefined> | SpikoDistributorApiError<"409", undefined>>
   /**
 * Retrieve account information (including the investor who owns it) by providing the account ID.
 */
-readonly "accountsGetAccount": <Config extends OperationConfig>(accountId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof AccountsGetAccount200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"AccountsGetAccount400", typeof AccountsGetAccount400.Type> | SpikoDistributorApiError<"AccountsGetAccount401", typeof AccountsGetAccount401.Type> | SpikoDistributorApiError<"AccountsGetAccount403", typeof AccountsGetAccount403.Type>>
+readonly "accountsGetAccount": <Config extends OperationConfig>(accountId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof AccountsGetAccount200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"AccountsGetAccount400", typeof AccountsGetAccount400.Type> | SpikoDistributorApiError<"AccountsGetAccount401", typeof AccountsGetAccount401.Type> | SpikoDistributorApiError<"AccountsGetAccount403", typeof AccountsGetAccount403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Retrieve deposit instructions for a given account, share class, and subscription currency.**
 *
@@ -1562,7 +1577,7 @@ readonly "accountsGetAccount": <Config extends OperationConfig>(accountId: strin
 *
 * The response also lists stablecoin deposit accounts under `stablecoinDepositAccounts`: one deposit address per supported network, provisioned on demand the first time instructions are requested. Each address accepts every stablecoin listed in its `stablecoins` field (independent of `subscriptionCurrency`); sending a supported stablecoin to it automatically creates and funds a subscription. An empty list means stablecoin deposits are not available for this account and share class (the feature requires an organization, or an individual with a tax identification number on file, on supported share classes).
 */
-readonly "accountsGetDepositInstructions": <Config extends OperationConfig>(accountId: string, options: { readonly params: typeof AccountsGetDepositInstructionsParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof AccountsGetDepositInstructions200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"AccountsGetDepositInstructions400", typeof AccountsGetDepositInstructions400.Type> | SpikoDistributorApiError<"AccountsGetDepositInstructions401", typeof AccountsGetDepositInstructions401.Type> | SpikoDistributorApiError<"AccountsGetDepositInstructions403", typeof AccountsGetDepositInstructions403.Type>>
+readonly "accountsGetDepositInstructions": <Config extends OperationConfig>(accountId: string, options: { readonly params: typeof AccountsGetDepositInstructionsParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof AccountsGetDepositInstructions200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"AccountsGetDepositInstructions400", typeof AccountsGetDepositInstructions400.Type> | SpikoDistributorApiError<"AccountsGetDepositInstructions401", typeof AccountsGetDepositInstructions401.Type> | SpikoDistributorApiError<"AccountsGetDepositInstructions403", typeof AccountsGetDepositInstructions403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Retrieve a paginated list of the deposit orders made by an investor.**
 *
@@ -1572,7 +1587,7 @@ readonly "accountsGetDepositInstructions": <Config extends OperationConfig>(acco
 * - When `shareClassId` is specified, only deposit orders for that share class are returned.
 * - Pagination parameters (`page` & `limit`) are optional and default to `page = 1` and `limit = 50`.
 */
-readonly "depositOrdersGetDepositOrders": <Config extends OperationConfig>(options: { readonly params: typeof DepositOrdersGetDepositOrdersParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof DepositOrdersGetDepositOrders200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"DepositOrdersGetDepositOrders400", typeof DepositOrdersGetDepositOrders400.Type> | SpikoDistributorApiError<"DepositOrdersGetDepositOrders401", typeof DepositOrdersGetDepositOrders401.Type> | SpikoDistributorApiError<"DepositOrdersGetDepositOrders403", typeof DepositOrdersGetDepositOrders403.Type>>
+readonly "depositOrdersGetDepositOrders": <Config extends OperationConfig>(options: { readonly params: typeof DepositOrdersGetDepositOrdersParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof DepositOrdersGetDepositOrders200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"DepositOrdersGetDepositOrders400", typeof DepositOrdersGetDepositOrders400.Type> | SpikoDistributorApiError<"DepositOrdersGetDepositOrders401", typeof DepositOrdersGetDepositOrders401.Type> | SpikoDistributorApiError<"DepositOrdersGetDepositOrders403", typeof DepositOrdersGetDepositOrders403.Type> | SpikoDistributorApiError<"404", undefined> | SpikoDistributorApiError<"500", undefined>>
   /**
 * **Create a new deposit order for an investor with the specified parameters.**
 *
@@ -1582,13 +1597,13 @@ readonly "depositOrdersGetDepositOrders": <Config extends OperationConfig>(optio
 *
 * > **Distribute-with-Spiko's-license distributors** cannot place this order from their backend. The investor must place it directly from the browser with a short-lived [Investor JWT](/developers/distributor_api/technical_guides/investor_jwt), targeting the investor-scoped path **`POST /v0/investor/deposit-orders/`** (identical payload and response, but authenticated with the investor JWT as bearer token instead of your API credentials).
 */
-readonly "depositOrdersCreateDepositOrder": <Config extends OperationConfig>(options: { readonly payload: typeof DepositOrdersCreateDepositOrderRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof DepositOrdersCreateDepositOrder200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"DepositOrdersCreateDepositOrder400", typeof DepositOrdersCreateDepositOrder400.Type> | SpikoDistributorApiError<"DepositOrdersCreateDepositOrder401", typeof DepositOrdersCreateDepositOrder401.Type> | SpikoDistributorApiError<"DepositOrdersCreateDepositOrder403", typeof DepositOrdersCreateDepositOrder403.Type> | SpikoDistributorApiError<"DepositOrdersCreateDepositOrder409", typeof DepositOrdersCreateDepositOrder409.Type> | SpikoDistributorApiError<"DepositOrdersCreateDepositOrder422", typeof DepositOrdersCreateDepositOrder422.Type>>
+readonly "depositOrdersCreateDepositOrder": <Config extends OperationConfig>(options: { readonly payload: typeof DepositOrdersCreateDepositOrderRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof DepositOrdersCreateDepositOrder200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"DepositOrdersCreateDepositOrder400", typeof DepositOrdersCreateDepositOrder400.Type> | SpikoDistributorApiError<"DepositOrdersCreateDepositOrder401", typeof DepositOrdersCreateDepositOrder401.Type> | SpikoDistributorApiError<"DepositOrdersCreateDepositOrder403", typeof DepositOrdersCreateDepositOrder403.Type> | SpikoDistributorApiError<"DepositOrdersCreateDepositOrder409", typeof DepositOrdersCreateDepositOrder409.Type> | SpikoDistributorApiError<"DepositOrdersCreateDepositOrder422", typeof DepositOrdersCreateDepositOrder422.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Retrieve information about a specific deposit order.**
 *
 * - Includes order status (`created` / `pending-collection` / `funded` / `executed` / `canceled`).
 */
-readonly "depositOrdersGetDepositOrder": <Config extends OperationConfig>(id: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof DepositOrdersGetDepositOrder200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"DepositOrdersGetDepositOrder400", typeof DepositOrdersGetDepositOrder400.Type> | SpikoDistributorApiError<"DepositOrdersGetDepositOrder401", typeof DepositOrdersGetDepositOrder401.Type> | SpikoDistributorApiError<"DepositOrdersGetDepositOrder403", typeof DepositOrdersGetDepositOrder403.Type>>
+readonly "depositOrdersGetDepositOrder": <Config extends OperationConfig>(id: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof DepositOrdersGetDepositOrder200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"DepositOrdersGetDepositOrder400", typeof DepositOrdersGetDepositOrder400.Type> | SpikoDistributorApiError<"DepositOrdersGetDepositOrder401", typeof DepositOrdersGetDepositOrder401.Type> | SpikoDistributorApiError<"DepositOrdersGetDepositOrder403", typeof DepositOrdersGetDepositOrder403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Get a pre-signed URL to download the subscription form for a deposit order, as a PDF.**
 *
@@ -1596,7 +1611,7 @@ readonly "depositOrdersGetDepositOrder": <Config extends OperationConfig>(id: st
 * - The document restates the investor's details, the fund being subscribed to, and the wire instructions to fund the deposit. It is the document to forward to a bank, or to keep as a payment justification.
 * - `locale` selects the language of the document and is required. The document is generated on first request and stored, so later requests for the same order and locale return a URL to the exact same file.
 */
-readonly "depositOrdersGetDepositOrderSubscriptionForm": <Config extends OperationConfig>(id: string, options: { readonly params: typeof DepositOrdersGetDepositOrderSubscriptionFormParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof DepositOrdersGetDepositOrderSubscriptionForm200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"DepositOrdersGetDepositOrderSubscriptionForm400", typeof DepositOrdersGetDepositOrderSubscriptionForm400.Type> | SpikoDistributorApiError<"DepositOrdersGetDepositOrderSubscriptionForm401", typeof DepositOrdersGetDepositOrderSubscriptionForm401.Type> | SpikoDistributorApiError<"DepositOrdersGetDepositOrderSubscriptionForm403", typeof DepositOrdersGetDepositOrderSubscriptionForm403.Type>>
+readonly "depositOrdersGetDepositOrderSubscriptionForm": <Config extends OperationConfig>(id: string, options: { readonly params: typeof DepositOrdersGetDepositOrderSubscriptionFormParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof DepositOrdersGetDepositOrderSubscriptionForm200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"DepositOrdersGetDepositOrderSubscriptionForm400", typeof DepositOrdersGetDepositOrderSubscriptionForm400.Type> | SpikoDistributorApiError<"DepositOrdersGetDepositOrderSubscriptionForm401", typeof DepositOrdersGetDepositOrderSubscriptionForm401.Type> | SpikoDistributorApiError<"DepositOrdersGetDepositOrderSubscriptionForm403", typeof DepositOrdersGetDepositOrderSubscriptionForm403.Type> | SpikoDistributorApiError<"404", undefined> | SpikoDistributorApiError<"500", undefined>>
   /**
 * **Retrieve a paginated list of all deposit orders made by a distributor.**
 *
@@ -1605,11 +1620,11 @@ readonly "depositOrdersGetDepositOrderSubscriptionForm": <Config extends Operati
 * - Orders are sorted by creation date (newest first).
 * - Pagination parameters (`page` & `limit`) are optional and default to `page = 1` and `limit = 50`.
 */
-readonly "depositOrdersGetAllDistributorDepositOrders": <Config extends OperationConfig>(options: { readonly params?: typeof DepositOrdersGetAllDistributorDepositOrdersParams.Encoded | undefined; readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof DepositOrdersGetAllDistributorDepositOrders200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"DepositOrdersGetAllDistributorDepositOrders400", typeof DepositOrdersGetAllDistributorDepositOrders400.Type> | SpikoDistributorApiError<"DepositOrdersGetAllDistributorDepositOrders401", typeof DepositOrdersGetAllDistributorDepositOrders401.Type> | SpikoDistributorApiError<"DepositOrdersGetAllDistributorDepositOrders403", typeof DepositOrdersGetAllDistributorDepositOrders403.Type>>
+readonly "depositOrdersGetAllDistributorDepositOrders": <Config extends OperationConfig>(options: { readonly params?: typeof DepositOrdersGetAllDistributorDepositOrdersParams.Encoded | undefined; readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof DepositOrdersGetAllDistributorDepositOrders200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"DepositOrdersGetAllDistributorDepositOrders400", typeof DepositOrdersGetAllDistributorDepositOrders400.Type> | SpikoDistributorApiError<"DepositOrdersGetAllDistributorDepositOrders401", typeof DepositOrdersGetAllDistributorDepositOrders401.Type> | SpikoDistributorApiError<"DepositOrdersGetAllDistributorDepositOrders403", typeof DepositOrdersGetAllDistributorDepositOrders403.Type> | SpikoDistributorApiError<"500", undefined>>
   /**
 * **Cancel a deposit order.** Order must be in created or pending-collection status.
 */
-readonly "depositOrdersCancelDepositOrder": <Config extends OperationConfig>(id: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof DepositOrdersCancelDepositOrder200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"DepositOrdersCancelDepositOrder400", typeof DepositOrdersCancelDepositOrder400.Type> | SpikoDistributorApiError<"DepositOrdersCancelDepositOrder401", typeof DepositOrdersCancelDepositOrder401.Type> | SpikoDistributorApiError<"DepositOrdersCancelDepositOrder403", typeof DepositOrdersCancelDepositOrder403.Type>>
+readonly "depositOrdersCancelDepositOrder": <Config extends OperationConfig>(id: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof DepositOrdersCancelDepositOrder200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"DepositOrdersCancelDepositOrder400", typeof DepositOrdersCancelDepositOrder400.Type> | SpikoDistributorApiError<"DepositOrdersCancelDepositOrder401", typeof DepositOrdersCancelDepositOrder401.Type> | SpikoDistributorApiError<"DepositOrdersCancelDepositOrder403", typeof DepositOrdersCancelDepositOrder403.Type> | SpikoDistributorApiError<"404", undefined> | SpikoDistributorApiError<"500", undefined>>
   /**
 * **Retrieve a paginated list of the withdrawal orders made by an investor.**
 *
@@ -1619,7 +1634,7 @@ readonly "depositOrdersCancelDepositOrder": <Config extends OperationConfig>(id:
 * - When `shareClassId` is specified, only withdrawal orders for that share class are returned.
 * - Pagination parameters (`page` & `limit`) are optional and default to `page = 1` and `limit = 50`.
 */
-readonly "withdrawalOrdersGetWithdrawalOrders": <Config extends OperationConfig>(options: { readonly params: typeof WithdrawalOrdersGetWithdrawalOrdersParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof WithdrawalOrdersGetWithdrawalOrders200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"WithdrawalOrdersGetWithdrawalOrders400", typeof WithdrawalOrdersGetWithdrawalOrders400.Type> | SpikoDistributorApiError<"WithdrawalOrdersGetWithdrawalOrders401", typeof WithdrawalOrdersGetWithdrawalOrders401.Type> | SpikoDistributorApiError<"WithdrawalOrdersGetWithdrawalOrders403", typeof WithdrawalOrdersGetWithdrawalOrders403.Type>>
+readonly "withdrawalOrdersGetWithdrawalOrders": <Config extends OperationConfig>(options: { readonly params: typeof WithdrawalOrdersGetWithdrawalOrdersParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof WithdrawalOrdersGetWithdrawalOrders200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"WithdrawalOrdersGetWithdrawalOrders400", typeof WithdrawalOrdersGetWithdrawalOrders400.Type> | SpikoDistributorApiError<"WithdrawalOrdersGetWithdrawalOrders401", typeof WithdrawalOrdersGetWithdrawalOrders401.Type> | SpikoDistributorApiError<"WithdrawalOrdersGetWithdrawalOrders403", typeof WithdrawalOrdersGetWithdrawalOrders403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Create a new withdrawal order for an investor with the specified parameters.**
 *
@@ -1636,13 +1651,13 @@ readonly "withdrawalOrdersGetWithdrawalOrders": <Config extends OperationConfig>
 *
 * > **Distribute-with-Spiko's-license distributors** cannot place this order from their backend. The investor must place it directly from the browser with a short-lived [Investor JWT](/developers/distributor_api/technical_guides/investor_jwt), targeting the investor-scoped path **`POST /v0/investor/withdrawal-orders/`** (identical payload and response, but authenticated with the investor JWT as bearer token instead of your API credentials).
 */
-readonly "withdrawalOrdersCreateWithdrawalOrder": <Config extends OperationConfig>(options: { readonly payload: typeof WithdrawalOrdersCreateWithdrawalOrderRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof WithdrawalOrdersCreateWithdrawalOrder200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"WithdrawalOrdersCreateWithdrawalOrder400", typeof WithdrawalOrdersCreateWithdrawalOrder400.Type> | SpikoDistributorApiError<"WithdrawalOrdersCreateWithdrawalOrder401", typeof WithdrawalOrdersCreateWithdrawalOrder401.Type> | SpikoDistributorApiError<"WithdrawalOrdersCreateWithdrawalOrder403", typeof WithdrawalOrdersCreateWithdrawalOrder403.Type> | SpikoDistributorApiError<"WithdrawalOrdersCreateWithdrawalOrder409", typeof WithdrawalOrdersCreateWithdrawalOrder409.Type> | SpikoDistributorApiError<"WithdrawalOrdersCreateWithdrawalOrder422", typeof WithdrawalOrdersCreateWithdrawalOrder422.Type>>
+readonly "withdrawalOrdersCreateWithdrawalOrder": <Config extends OperationConfig>(options: { readonly payload: typeof WithdrawalOrdersCreateWithdrawalOrderRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof WithdrawalOrdersCreateWithdrawalOrder200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"WithdrawalOrdersCreateWithdrawalOrder400", typeof WithdrawalOrdersCreateWithdrawalOrder400.Type> | SpikoDistributorApiError<"WithdrawalOrdersCreateWithdrawalOrder401", typeof WithdrawalOrdersCreateWithdrawalOrder401.Type> | SpikoDistributorApiError<"WithdrawalOrdersCreateWithdrawalOrder403", typeof WithdrawalOrdersCreateWithdrawalOrder403.Type> | SpikoDistributorApiError<"WithdrawalOrdersCreateWithdrawalOrder409", typeof WithdrawalOrdersCreateWithdrawalOrder409.Type> | SpikoDistributorApiError<"WithdrawalOrdersCreateWithdrawalOrder422", typeof WithdrawalOrdersCreateWithdrawalOrder422.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Retrieve information about a specific withdrawal order.**
 *
 * - Includes order status (`pending` / `executed` / `canceled`).
 */
-readonly "withdrawalOrdersGetWithdrawalOrder": <Config extends OperationConfig>(id: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof WithdrawalOrdersGetWithdrawalOrder200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"WithdrawalOrdersGetWithdrawalOrder400", typeof WithdrawalOrdersGetWithdrawalOrder400.Type> | SpikoDistributorApiError<"WithdrawalOrdersGetWithdrawalOrder401", typeof WithdrawalOrdersGetWithdrawalOrder401.Type> | SpikoDistributorApiError<"WithdrawalOrdersGetWithdrawalOrder403", typeof WithdrawalOrdersGetWithdrawalOrder403.Type>>
+readonly "withdrawalOrdersGetWithdrawalOrder": <Config extends OperationConfig>(id: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof WithdrawalOrdersGetWithdrawalOrder200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"WithdrawalOrdersGetWithdrawalOrder400", typeof WithdrawalOrdersGetWithdrawalOrder400.Type> | SpikoDistributorApiError<"WithdrawalOrdersGetWithdrawalOrder401", typeof WithdrawalOrdersGetWithdrawalOrder401.Type> | SpikoDistributorApiError<"WithdrawalOrdersGetWithdrawalOrder403", typeof WithdrawalOrdersGetWithdrawalOrder403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Retrieve a paginated list of all withdrawal orders made by a distributor.**
 *
@@ -1655,7 +1670,7 @@ readonly "withdrawalOrdersGetAllDistributorWithdrawalOrders": <Config extends Op
   /**
 * **Cancel a withdrawal order.** Order must be in `pending` status.
 */
-readonly "withdrawalOrdersCancelWithdrawalOrder": <Config extends OperationConfig>(id: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof WithdrawalOrdersCancelWithdrawalOrder200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"WithdrawalOrdersCancelWithdrawalOrder400", typeof WithdrawalOrdersCancelWithdrawalOrder400.Type> | SpikoDistributorApiError<"WithdrawalOrdersCancelWithdrawalOrder401", typeof WithdrawalOrdersCancelWithdrawalOrder401.Type> | SpikoDistributorApiError<"WithdrawalOrdersCancelWithdrawalOrder403", typeof WithdrawalOrdersCancelWithdrawalOrder403.Type>>
+readonly "withdrawalOrdersCancelWithdrawalOrder": <Config extends OperationConfig>(id: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof WithdrawalOrdersCancelWithdrawalOrder200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"WithdrawalOrdersCancelWithdrawalOrder400", typeof WithdrawalOrdersCancelWithdrawalOrder400.Type> | SpikoDistributorApiError<"WithdrawalOrdersCancelWithdrawalOrder401", typeof WithdrawalOrdersCancelWithdrawalOrder401.Type> | SpikoDistributorApiError<"WithdrawalOrdersCancelWithdrawalOrder403", typeof WithdrawalOrdersCancelWithdrawalOrder403.Type> | SpikoDistributorApiError<"404", undefined> | SpikoDistributorApiError<"500", undefined>>
   /**
 * **Retrieve a paginated list of the swap orders made by an investor.**
 *
@@ -1665,7 +1680,7 @@ readonly "withdrawalOrdersCancelWithdrawalOrder": <Config extends OperationConfi
 * - When `shareClassId` is specified, only swap orders with that share class on either side are returned.
 * - Pagination parameters (`page` & `limit`) are optional and default to `page = 1` and `limit = 50`.
 */
-readonly "swapOrdersGetSwapOrders": <Config extends OperationConfig>(options: { readonly params: typeof SwapOrdersGetSwapOrdersParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof SwapOrdersGetSwapOrders200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"SwapOrdersGetSwapOrders400", typeof SwapOrdersGetSwapOrders400.Type> | SpikoDistributorApiError<"SwapOrdersGetSwapOrders401", typeof SwapOrdersGetSwapOrders401.Type> | SpikoDistributorApiError<"SwapOrdersGetSwapOrders403", typeof SwapOrdersGetSwapOrders403.Type>>
+readonly "swapOrdersGetSwapOrders": <Config extends OperationConfig>(options: { readonly params: typeof SwapOrdersGetSwapOrdersParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof SwapOrdersGetSwapOrders200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"SwapOrdersGetSwapOrders400", typeof SwapOrdersGetSwapOrders400.Type> | SpikoDistributorApiError<"SwapOrdersGetSwapOrders401", typeof SwapOrdersGetSwapOrders401.Type> | SpikoDistributorApiError<"SwapOrdersGetSwapOrders403", typeof SwapOrdersGetSwapOrders403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Move an investor's holdings directly from one share class to another. This is materialized by a linked redemption/subscription pair.**
 *
@@ -1681,14 +1696,14 @@ readonly "swapOrdersGetSwapOrders": <Config extends OperationConfig>(options: { 
 *
 * > **Distribute-with-Spiko's-license distributors** cannot place this order. Swap orders are not yet available through an [Investor JWT](/developers/distributor_api/technical_guides/investor_jwt).
 */
-readonly "swapOrdersCreateSwapOrder": <Config extends OperationConfig>(options: { readonly payload: typeof SwapOrdersCreateSwapOrderRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof SwapOrdersCreateSwapOrder200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"SwapOrdersCreateSwapOrder400", typeof SwapOrdersCreateSwapOrder400.Type> | SpikoDistributorApiError<"SwapOrdersCreateSwapOrder401", typeof SwapOrdersCreateSwapOrder401.Type> | SpikoDistributorApiError<"SwapOrdersCreateSwapOrder403", typeof SwapOrdersCreateSwapOrder403.Type>>
+readonly "swapOrdersCreateSwapOrder": <Config extends OperationConfig>(options: { readonly payload: typeof SwapOrdersCreateSwapOrderRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof SwapOrdersCreateSwapOrder200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"SwapOrdersCreateSwapOrder400", typeof SwapOrdersCreateSwapOrder400.Type> | SpikoDistributorApiError<"SwapOrdersCreateSwapOrder401", typeof SwapOrdersCreateSwapOrder401.Type> | SpikoDistributorApiError<"SwapOrdersCreateSwapOrder403", typeof SwapOrdersCreateSwapOrder403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Retrieve information about a specific swap order.**
 *
 * - Includes order status (`created` / `executed` / `canceled`).
 * - Once `executed`, `settlement` carries both sides: the amount, share quantity and applied NAV that left the source share class and that entered the target one, plus the applied exchange rate for a cross-currency swap.
 */
-readonly "swapOrdersGetSwapOrder": <Config extends OperationConfig>(id: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof SwapOrdersGetSwapOrder200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"SwapOrdersGetSwapOrder400", typeof SwapOrdersGetSwapOrder400.Type> | SpikoDistributorApiError<"SwapOrdersGetSwapOrder401", typeof SwapOrdersGetSwapOrder401.Type> | SpikoDistributorApiError<"SwapOrdersGetSwapOrder403", typeof SwapOrdersGetSwapOrder403.Type>>
+readonly "swapOrdersGetSwapOrder": <Config extends OperationConfig>(id: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof SwapOrdersGetSwapOrder200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"SwapOrdersGetSwapOrder400", typeof SwapOrdersGetSwapOrder400.Type> | SpikoDistributorApiError<"SwapOrdersGetSwapOrder401", typeof SwapOrdersGetSwapOrder401.Type> | SpikoDistributorApiError<"SwapOrdersGetSwapOrder403", typeof SwapOrdersGetSwapOrder403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Retrieve a paginated list of all swap orders made by a distributor.**
 *
@@ -1699,7 +1714,7 @@ readonly "swapOrdersGetAllDistributorSwapOrders": <Config extends OperationConfi
   /**
 * **Cancel a swap order.** Order must be in `created` status, and only until the source side is valued: once that day's cutoff has passed the order can no longer be canceled and `SwapOrderNotCancelableError` is returned.
 */
-readonly "swapOrdersCancelSwapOrder": <Config extends OperationConfig>(id: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof SwapOrdersCancelSwapOrder200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"SwapOrdersCancelSwapOrder400", typeof SwapOrdersCancelSwapOrder400.Type> | SpikoDistributorApiError<"SwapOrdersCancelSwapOrder401", typeof SwapOrdersCancelSwapOrder401.Type> | SpikoDistributorApiError<"SwapOrdersCancelSwapOrder403", typeof SwapOrdersCancelSwapOrder403.Type>>
+readonly "swapOrdersCancelSwapOrder": <Config extends OperationConfig>(id: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof SwapOrdersCancelSwapOrder200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"SwapOrdersCancelSwapOrder400", typeof SwapOrdersCancelSwapOrder400.Type> | SpikoDistributorApiError<"SwapOrdersCancelSwapOrder401", typeof SwapOrdersCancelSwapOrder401.Type> | SpikoDistributorApiError<"SwapOrdersCancelSwapOrder403", typeof SwapOrdersCancelSwapOrder403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Returns every share class pair you have access to that supports a swap.**
 *
@@ -1712,14 +1727,14 @@ readonly "distributorsGetSwapRoutes": <Config extends OperationConfig>(options: 
   /**
 * Retrieve a view of an investor's investment portfolio, including current asset values, asset allocation, and performance metrics.
 */
-readonly "portfoliosGetPortfolio": <Config extends OperationConfig>(options: { readonly params: typeof PortfoliosGetPortfolioParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof PortfoliosGetPortfolio200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"PortfoliosGetPortfolio400", typeof PortfoliosGetPortfolio400.Type> | SpikoDistributorApiError<"PortfoliosGetPortfolio401", typeof PortfoliosGetPortfolio401.Type> | SpikoDistributorApiError<"PortfoliosGetPortfolio403", typeof PortfoliosGetPortfolio403.Type>>
+readonly "portfoliosGetPortfolio": <Config extends OperationConfig>(options: { readonly params: typeof PortfoliosGetPortfolioParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof PortfoliosGetPortfolio200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"PortfoliosGetPortfolio400", typeof PortfoliosGetPortfolio400.Type> | SpikoDistributorApiError<"PortfoliosGetPortfolio401", typeof PortfoliosGetPortfolio401.Type> | SpikoDistributorApiError<"PortfoliosGetPortfolio403", typeof PortfoliosGetPortfolio403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Retrieve all bank accounts for a given investor and currency.**
 *
 * - Returns account details including IBAN, BIC, and validation status.
 * - Excludes archived bank accounts.
 */
-readonly "bankAccountsGetBankAccounts": <Config extends OperationConfig>(options: { readonly params: typeof BankAccountsGetBankAccountsParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof BankAccountsGetBankAccounts200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"BankAccountsGetBankAccounts400", typeof BankAccountsGetBankAccounts400.Type> | SpikoDistributorApiError<"BankAccountsGetBankAccounts401", typeof BankAccountsGetBankAccounts401.Type> | SpikoDistributorApiError<"BankAccountsGetBankAccounts403", typeof BankAccountsGetBankAccounts403.Type>>
+readonly "bankAccountsGetBankAccounts": <Config extends OperationConfig>(options: { readonly params: typeof BankAccountsGetBankAccountsParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof BankAccountsGetBankAccounts200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"BankAccountsGetBankAccounts400", typeof BankAccountsGetBankAccounts400.Type> | SpikoDistributorApiError<"BankAccountsGetBankAccounts401", typeof BankAccountsGetBankAccounts401.Type> | SpikoDistributorApiError<"BankAccountsGetBankAccounts403", typeof BankAccountsGetBankAccounts403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Create a new bank account, linked to an existing investor, and for a given currency.**
 *
@@ -1729,20 +1744,20 @@ readonly "bankAccountsGetBankAccounts": <Config extends OperationConfig>(options
 * - For non-EUR accounts, the beneficiary `address` is temporarily optional: when omitted, the investor's registered address is used instead. It will become required in a future update.
 * - Return complete bank account information.
 */
-readonly "bankAccountsAddBankAccount": <Config extends OperationConfig>(options: { readonly payload: typeof BankAccountsAddBankAccountRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof BankAccountsAddBankAccount200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"BankAccountsAddBankAccount400", typeof BankAccountsAddBankAccount400.Type> | SpikoDistributorApiError<"BankAccountsAddBankAccount401", typeof BankAccountsAddBankAccount401.Type> | SpikoDistributorApiError<"BankAccountsAddBankAccount403", typeof BankAccountsAddBankAccount403.Type>>
+readonly "bankAccountsAddBankAccount": <Config extends OperationConfig>(options: { readonly payload: typeof BankAccountsAddBankAccountRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof BankAccountsAddBankAccount200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"BankAccountsAddBankAccount400", typeof BankAccountsAddBankAccount400.Type> | SpikoDistributorApiError<"BankAccountsAddBankAccount401", typeof BankAccountsAddBankAccount401.Type> | SpikoDistributorApiError<"BankAccountsAddBankAccount403", typeof BankAccountsAddBankAccount403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Fetch a bank account by its ID.**
 *
 * - Return detailed bank account information, including IBAN or account number, BIC, and validation status.
 */
-readonly "bankAccountsGetBankAccount": <Config extends OperationConfig>(id: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof BankAccountsGetBankAccount200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"BankAccountsGetBankAccount400", typeof BankAccountsGetBankAccount400.Type> | SpikoDistributorApiError<"BankAccountsGetBankAccount401", typeof BankAccountsGetBankAccount401.Type> | SpikoDistributorApiError<"BankAccountsGetBankAccount403", typeof BankAccountsGetBankAccount403.Type>>
+readonly "bankAccountsGetBankAccount": <Config extends OperationConfig>(id: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof BankAccountsGetBankAccount200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"BankAccountsGetBankAccount400", typeof BankAccountsGetBankAccount400.Type> | SpikoDistributorApiError<"BankAccountsGetBankAccount401", typeof BankAccountsGetBankAccount401.Type> | SpikoDistributorApiError<"BankAccountsGetBankAccount403", typeof BankAccountsGetBankAccount403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Archive a bank account. The associated proof of ownership document (if any) is also archived.**
 *
 * - Once archived, a bank account is no longer available for new transactions, but remains accessible for historical reference and audit purposes.
 * - Any pending withdrawal orders that were using this account will have the bank account reference removed. Orders that are already executed are not affected.
 */
-readonly "bankAccountsArchiveBankAccount": <Config extends OperationConfig>(id: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof BankAccountsArchiveBankAccount200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"BankAccountsArchiveBankAccount400", typeof BankAccountsArchiveBankAccount400.Type> | SpikoDistributorApiError<"BankAccountsArchiveBankAccount401", typeof BankAccountsArchiveBankAccount401.Type> | SpikoDistributorApiError<"BankAccountsArchiveBankAccount403", typeof BankAccountsArchiveBankAccount403.Type>>
+readonly "bankAccountsArchiveBankAccount": <Config extends OperationConfig>(id: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof BankAccountsArchiveBankAccount200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"BankAccountsArchiveBankAccount400", typeof BankAccountsArchiveBankAccount400.Type> | SpikoDistributorApiError<"BankAccountsArchiveBankAccount401", typeof BankAccountsArchiveBankAccount401.Type> | SpikoDistributorApiError<"BankAccountsArchiveBankAccount403", typeof BankAccountsArchiveBankAccount403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Upload a proof of bank account ownership document for a bank account that was invalidated after VoP verification failure.**
 *
@@ -1750,7 +1765,7 @@ readonly "bankAccountsArchiveBankAccount": <Config extends OperationConfig>(id: 
 * - Transitions the bank account to `pending-validation` for manual review by Spiko's operations team.
 * - The `proofInvestorDocumentId` must reference a previously uploaded investor document.
 */
-readonly "bankAccountsUploadBankAccountProofDocument": <Config extends OperationConfig>(id: string, options: { readonly payload: typeof BankAccountsUploadBankAccountProofDocumentRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof BankAccountsUploadBankAccountProofDocument200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"BankAccountsUploadBankAccountProofDocument400", typeof BankAccountsUploadBankAccountProofDocument400.Type> | SpikoDistributorApiError<"BankAccountsUploadBankAccountProofDocument401", typeof BankAccountsUploadBankAccountProofDocument401.Type> | SpikoDistributorApiError<"BankAccountsUploadBankAccountProofDocument403", typeof BankAccountsUploadBankAccountProofDocument403.Type>>
+readonly "bankAccountsUploadBankAccountProofDocument": <Config extends OperationConfig>(id: string, options: { readonly payload: typeof BankAccountsUploadBankAccountProofDocumentRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof BankAccountsUploadBankAccountProofDocument200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"BankAccountsUploadBankAccountProofDocument400", typeof BankAccountsUploadBankAccountProofDocument400.Type> | SpikoDistributorApiError<"BankAccountsUploadBankAccountProofDocument401", typeof BankAccountsUploadBankAccountProofDocument401.Type> | SpikoDistributorApiError<"BankAccountsUploadBankAccountProofDocument403", typeof BankAccountsUploadBankAccountProofDocument403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Retrieve detailed accounting positions (midnight to midnight UTC) for an investor in a specific share class.**
 *
@@ -1760,13 +1775,19 @@ readonly "bankAccountsUploadBankAccountProofDocument": <Config extends Operation
 * - Realized and unrealized gains;
 * - Daily and total yields.
 */
-readonly "accountingPositionsGetAccountingPositionsHistory": <Config extends OperationConfig>(options: { readonly params: typeof AccountingPositionsGetAccountingPositionsHistoryParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof AccountingPositionsGetAccountingPositionsHistory200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"AccountingPositionsGetAccountingPositionsHistory400", typeof AccountingPositionsGetAccountingPositionsHistory400.Type> | SpikoDistributorApiError<"AccountingPositionsGetAccountingPositionsHistory401", typeof AccountingPositionsGetAccountingPositionsHistory401.Type> | SpikoDistributorApiError<"AccountingPositionsGetAccountingPositionsHistory403", typeof AccountingPositionsGetAccountingPositionsHistory403.Type>>
+readonly "accountingPositionsGetAccountingPositionsHistory": <Config extends OperationConfig>(options: { readonly params: typeof AccountingPositionsGetAccountingPositionsHistoryParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof AccountingPositionsGetAccountingPositionsHistory200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"AccountingPositionsGetAccountingPositionsHistory400", typeof AccountingPositionsGetAccountingPositionsHistory400.Type> | SpikoDistributorApiError<"AccountingPositionsGetAccountingPositionsHistory401", typeof AccountingPositionsGetAccountingPositionsHistory401.Type> | SpikoDistributorApiError<"AccountingPositionsGetAccountingPositionsHistory403", typeof AccountingPositionsGetAccountingPositionsHistory403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Download an account statement related to an investor and a share class between two dates.**
 *
 *   - The account statement will be a pdf file.
 */
-readonly "accountingPositionsDownloadAccountStatement": <Config extends OperationConfig>(options: { readonly params: typeof AccountingPositionsDownloadAccountStatementParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<Uint8Array, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"AccountingPositionsDownloadAccountStatement400", typeof AccountingPositionsDownloadAccountStatement400.Type> | SpikoDistributorApiError<"AccountingPositionsDownloadAccountStatement401", typeof AccountingPositionsDownloadAccountStatement401.Type> | SpikoDistributorApiError<"AccountingPositionsDownloadAccountStatement403", typeof AccountingPositionsDownloadAccountStatement403.Type>>
+readonly "accountingPositionsDownloadAccountStatement": <Config extends OperationConfig>(options: { readonly params: typeof AccountingPositionsDownloadAccountStatementParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<Uint8Array, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"AccountingPositionsDownloadAccountStatement400", typeof AccountingPositionsDownloadAccountStatement400.Type> | SpikoDistributorApiError<"AccountingPositionsDownloadAccountStatement401", typeof AccountingPositionsDownloadAccountStatement401.Type> | SpikoDistributorApiError<"AccountingPositionsDownloadAccountStatement403", typeof AccountingPositionsDownloadAccountStatement403.Type> | SpikoDistributorApiError<"404", undefined>>
+  /**
+* **Download an account statement related to an investor and a share class between two dates.**
+*
+*   - The account statement will be a pdf file.
+*/
+readonly "accountingPositionsDownloadAccountStatementStream": (options: { readonly params: typeof AccountingPositionsDownloadAccountStatementParams.Encoded }) => Stream.Stream<Uint8Array, HttpClientError.HttpClientError>
   /**
 * **Return a chronological list of daily yields for an investor in a specific share class.**
 *
@@ -1774,19 +1795,19 @@ readonly "accountingPositionsDownloadAccountStatement": <Config extends Operatio
 *
 * - `from` and `to` parameters are optional
 */
-readonly "yieldsGetYieldHistory": <Config extends OperationConfig>(options: { readonly params: typeof YieldsGetYieldHistoryParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof YieldsGetYieldHistory200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"YieldsGetYieldHistory400", typeof YieldsGetYieldHistory400.Type> | SpikoDistributorApiError<"YieldsGetYieldHistory401", typeof YieldsGetYieldHistory401.Type> | SpikoDistributorApiError<"YieldsGetYieldHistory403", typeof YieldsGetYieldHistory403.Type> | SpikoDistributorApiError<"YieldsGetYieldHistory422", typeof YieldsGetYieldHistory422.Type>>
+readonly "yieldsGetYieldHistory": <Config extends OperationConfig>(options: { readonly params: typeof YieldsGetYieldHistoryParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof YieldsGetYieldHistory200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"YieldsGetYieldHistory400", typeof YieldsGetYieldHistory400.Type> | SpikoDistributorApiError<"YieldsGetYieldHistory401", typeof YieldsGetYieldHistory401.Type> | SpikoDistributorApiError<"YieldsGetYieldHistory403", typeof YieldsGetYieldHistory403.Type> | SpikoDistributorApiError<"YieldsGetYieldHistory422", typeof YieldsGetYieldHistory422.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Return a single daily yield by its identifier.**
 *
 * The identifier is the `id` delivered in the `yield.credited` webhook payload.
 */
-readonly "yieldsGetYield": <Config extends OperationConfig>(accountingPositionId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof YieldsGetYield200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"YieldsGetYield400", typeof YieldsGetYield400.Type> | SpikoDistributorApiError<"YieldsGetYield401", typeof YieldsGetYield401.Type> | SpikoDistributorApiError<"YieldsGetYield403", typeof YieldsGetYield403.Type>>
+readonly "yieldsGetYield": <Config extends OperationConfig>(accountingPositionId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof YieldsGetYield200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"YieldsGetYield400", typeof YieldsGetYield400.Type> | SpikoDistributorApiError<"YieldsGetYield401", typeof YieldsGetYield401.Type> | SpikoDistributorApiError<"YieldsGetYield403", typeof YieldsGetYield403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Retrieve all users associated with an investor.**
 *
 * - Returns the list of users with their roles (admin, manager, or viewer).
 */
-readonly "usersGetUsersOfInvestor": <Config extends OperationConfig>(investorId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof UsersGetUsersOfInvestor200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"UsersGetUsersOfInvestor400", typeof UsersGetUsersOfInvestor400.Type> | SpikoDistributorApiError<"UsersGetUsersOfInvestor401", typeof UsersGetUsersOfInvestor401.Type> | SpikoDistributorApiError<"UsersGetUsersOfInvestor403", typeof UsersGetUsersOfInvestor403.Type>>
+readonly "usersGetUsersOfInvestor": <Config extends OperationConfig>(investorId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof UsersGetUsersOfInvestor200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"UsersGetUsersOfInvestor400", typeof UsersGetUsersOfInvestor400.Type> | SpikoDistributorApiError<"UsersGetUsersOfInvestor401", typeof UsersGetUsersOfInvestor401.Type> | SpikoDistributorApiError<"UsersGetUsersOfInvestor403", typeof UsersGetUsersOfInvestor403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Invite a new user to join an investor account.**
 *
@@ -1794,31 +1815,31 @@ readonly "usersGetUsersOfInvestor": <Config extends OperationConfig>(investorId:
 * - If the user does not have a Spiko account, an invitation email will be sent.
 * - Returns either the created invitation or the added user depending on the scenario.
 */
-readonly "usersCreateInvestorInvitation": <Config extends OperationConfig>(investorId: string, options: { readonly payload: typeof UsersCreateInvestorInvitationRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof UsersCreateInvestorInvitation200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"UsersCreateInvestorInvitation400", typeof UsersCreateInvestorInvitation400.Type> | SpikoDistributorApiError<"UsersCreateInvestorInvitation401", typeof UsersCreateInvestorInvitation401.Type> | SpikoDistributorApiError<"UsersCreateInvestorInvitation403", typeof UsersCreateInvestorInvitation403.Type> | SpikoDistributorApiError<"UsersCreateInvestorInvitation409", typeof UsersCreateInvestorInvitation409.Type>>
+readonly "usersCreateInvestorInvitation": <Config extends OperationConfig>(investorId: string, options: { readonly payload: typeof UsersCreateInvestorInvitationRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof UsersCreateInvestorInvitation200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"UsersCreateInvestorInvitation400", typeof UsersCreateInvestorInvitation400.Type> | SpikoDistributorApiError<"UsersCreateInvestorInvitation401", typeof UsersCreateInvestorInvitation401.Type> | SpikoDistributorApiError<"UsersCreateInvestorInvitation403", typeof UsersCreateInvestorInvitation403.Type> | SpikoDistributorApiError<"UsersCreateInvestorInvitation409", typeof UsersCreateInvestorInvitation409.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Retrieve all pending user invitations for an investor.**
 *
 * - Returns invitations that have been sent but not yet accepted.
 */
-readonly "usersGetPendingInvitationsOfInvestor": <Config extends OperationConfig>(investorId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof UsersGetPendingInvitationsOfInvestor200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"UsersGetPendingInvitationsOfInvestor400", typeof UsersGetPendingInvitationsOfInvestor400.Type> | SpikoDistributorApiError<"UsersGetPendingInvitationsOfInvestor401", typeof UsersGetPendingInvitationsOfInvestor401.Type> | SpikoDistributorApiError<"UsersGetPendingInvitationsOfInvestor403", typeof UsersGetPendingInvitationsOfInvestor403.Type>>
+readonly "usersGetPendingInvitationsOfInvestor": <Config extends OperationConfig>(investorId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof UsersGetPendingInvitationsOfInvestor200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"UsersGetPendingInvitationsOfInvestor400", typeof UsersGetPendingInvitationsOfInvestor400.Type> | SpikoDistributorApiError<"UsersGetPendingInvitationsOfInvestor401", typeof UsersGetPendingInvitationsOfInvestor401.Type> | SpikoDistributorApiError<"UsersGetPendingInvitationsOfInvestor403", typeof UsersGetPendingInvitationsOfInvestor403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Retrieve a user invitation by its ID.**
 *
 * - Returns the invitation with its current status (`pending` or `accepted`).
 * - Useful for looking up an invitation when receiving an `investor-invitation.accepted` webhook.
 */
-readonly "usersGetInvitationOfInvestor": <Config extends OperationConfig>(investorId: string, id: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof UsersGetInvitationOfInvestor200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"UsersGetInvitationOfInvestor400", typeof UsersGetInvitationOfInvestor400.Type> | SpikoDistributorApiError<"UsersGetInvitationOfInvestor401", typeof UsersGetInvitationOfInvestor401.Type> | SpikoDistributorApiError<"UsersGetInvitationOfInvestor403", typeof UsersGetInvitationOfInvestor403.Type>>
+readonly "usersGetInvitationOfInvestor": <Config extends OperationConfig>(investorId: string, id: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof UsersGetInvitationOfInvestor200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"UsersGetInvitationOfInvestor400", typeof UsersGetInvitationOfInvestor400.Type> | SpikoDistributorApiError<"UsersGetInvitationOfInvestor401", typeof UsersGetInvitationOfInvestor401.Type> | SpikoDistributorApiError<"UsersGetInvitationOfInvestor403", typeof UsersGetInvitationOfInvestor403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Remove a user from an investor account.**
 */
-readonly "usersUnlinkUser": <Config extends OperationConfig>(investorId: string, userId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<void, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"UsersUnlinkUser400", typeof UsersUnlinkUser400.Type> | SpikoDistributorApiError<"UsersUnlinkUser401", typeof UsersUnlinkUser401.Type> | SpikoDistributorApiError<"UsersUnlinkUser403", typeof UsersUnlinkUser403.Type>>
+readonly "usersUnlinkUser": <Config extends OperationConfig>(investorId: string, userId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<void, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"UsersUnlinkUser400", typeof UsersUnlinkUser400.Type> | SpikoDistributorApiError<"UsersUnlinkUser401", typeof UsersUnlinkUser401.Type> | SpikoDistributorApiError<"UsersUnlinkUser403", typeof UsersUnlinkUser403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Delete a pending user invitation for an investor.**
 *
 * - Only pending (not yet accepted) invitations can be deleted.
 * - The invitation is identified by the invitee's email address.
 */
-readonly "usersDeleteInvitation": <Config extends OperationConfig>(investorId: string, email: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<void, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"UsersDeleteInvitation400", typeof UsersDeleteInvitation400.Type> | SpikoDistributorApiError<"UsersDeleteInvitation401", typeof UsersDeleteInvitation401.Type> | SpikoDistributorApiError<"UsersDeleteInvitation403", typeof UsersDeleteInvitation403.Type>>
+readonly "usersDeleteInvitation": <Config extends OperationConfig>(investorId: string, email: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<void, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"UsersDeleteInvitation400", typeof UsersDeleteInvitation400.Type> | SpikoDistributorApiError<"UsersDeleteInvitation401", typeof UsersDeleteInvitation401.Type> | SpikoDistributorApiError<"UsersDeleteInvitation403", typeof UsersDeleteInvitation403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Resend the invitation email for a pending user invitation.**
 *
@@ -1826,7 +1847,7 @@ readonly "usersDeleteInvitation": <Config extends OperationConfig>(investorId: s
 * - The invitation is identified by the invitee's email address.
 * - A new invitation email is sent to the invitee.
 */
-readonly "usersResendInvitation": <Config extends OperationConfig>(investorId: string, email: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<void, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"UsersResendInvitation400", typeof UsersResendInvitation400.Type> | SpikoDistributorApiError<"UsersResendInvitation401", typeof UsersResendInvitation401.Type> | SpikoDistributorApiError<"UsersResendInvitation403", typeof UsersResendInvitation403.Type>>
+readonly "usersResendInvitation": <Config extends OperationConfig>(investorId: string, email: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<void, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"UsersResendInvitation400", typeof UsersResendInvitation400.Type> | SpikoDistributorApiError<"UsersResendInvitation401", typeof UsersResendInvitation401.Type> | SpikoDistributorApiError<"UsersResendInvitation403", typeof UsersResendInvitation403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Retrieve the unified transaction history for an account.**
 *
@@ -1837,7 +1858,7 @@ readonly "usersResendInvitation": <Config extends OperationConfig>(investorId: s
 * - Optional `transactionType` filter narrows to one of `deposit`, `withdrawal`, `transfer`, or `yield`.
 * - Canceled and failed entries are excluded.
 */
-readonly "accountTransactionsGetAccountTransactions": <Config extends OperationConfig>(options: { readonly params: typeof AccountTransactionsGetAccountTransactionsParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof AccountTransactionsGetAccountTransactions200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"AccountTransactionsGetAccountTransactions400", typeof AccountTransactionsGetAccountTransactions400.Type> | SpikoDistributorApiError<"AccountTransactionsGetAccountTransactions401", typeof AccountTransactionsGetAccountTransactions401.Type> | SpikoDistributorApiError<"AccountTransactionsGetAccountTransactions403", typeof AccountTransactionsGetAccountTransactions403.Type>>
+readonly "accountTransactionsGetAccountTransactions": <Config extends OperationConfig>(options: { readonly params: typeof AccountTransactionsGetAccountTransactionsParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof AccountTransactionsGetAccountTransactions200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"AccountTransactionsGetAccountTransactions400", typeof AccountTransactionsGetAccountTransactions400.Type> | SpikoDistributorApiError<"AccountTransactionsGetAccountTransactions401", typeof AccountTransactionsGetAccountTransactions401.Type> | SpikoDistributorApiError<"AccountTransactionsGetAccountTransactions403", typeof AccountTransactionsGetAccountTransactions403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * Retrieve information about the distributor linked to the client credentials.
 */
@@ -1849,30 +1870,30 @@ readonly "distributorsGetAllAllowedShareClasses": <Config extends OperationConfi
   /**
 * Retrieve information about a distributor investor contract (investor, share class, annual fee).
 */
-readonly "distributorInvestorContractsGetDistributorInvestorContract": <Config extends OperationConfig>(id: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof DistributorInvestorContractsGetDistributorInvestorContract200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"DistributorInvestorContractsGetDistributorInvestorContract400", typeof DistributorInvestorContractsGetDistributorInvestorContract400.Type> | SpikoDistributorApiError<"DistributorInvestorContractsGetDistributorInvestorContract401", typeof DistributorInvestorContractsGetDistributorInvestorContract401.Type> | SpikoDistributorApiError<"DistributorInvestorContractsGetDistributorInvestorContract403", typeof DistributorInvestorContractsGetDistributorInvestorContract403.Type>>
+readonly "distributorInvestorContractsGetDistributorInvestorContract": <Config extends OperationConfig>(id: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof DistributorInvestorContractsGetDistributorInvestorContract200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"DistributorInvestorContractsGetDistributorInvestorContract400", typeof DistributorInvestorContractsGetDistributorInvestorContract400.Type> | SpikoDistributorApiError<"DistributorInvestorContractsGetDistributorInvestorContract401", typeof DistributorInvestorContractsGetDistributorInvestorContract401.Type> | SpikoDistributorApiError<"DistributorInvestorContractsGetDistributorInvestorContract403", typeof DistributorInvestorContractsGetDistributorInvestorContract403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * Get a distributor investor contract informations of the given investor.
 */
-readonly "distributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClass": <Config extends OperationConfig>(options: { readonly params: typeof DistributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClassParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof DistributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClass200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"DistributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClass400", typeof DistributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClass400.Type> | SpikoDistributorApiError<"DistributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClass401", typeof DistributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClass401.Type> | SpikoDistributorApiError<"DistributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClass403", typeof DistributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClass403.Type>>
+readonly "distributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClass": <Config extends OperationConfig>(options: { readonly params: typeof DistributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClassParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof DistributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClass200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"DistributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClass400", typeof DistributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClass400.Type> | SpikoDistributorApiError<"DistributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClass401", typeof DistributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClass401.Type> | SpikoDistributorApiError<"DistributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClass403", typeof DistributorInvestorContractsGetDistributorInvestorContractOfInvestorAndShareClass403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * Update the annual fee of an existing distributor investor contract.
 */
-readonly "distributorInvestorContractsUpdateDistributorInvestorContractFee": <Config extends OperationConfig>(options: { readonly payload: typeof DistributorInvestorContractsUpdateDistributorInvestorContractFeeRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof DistributorInvestorContractsUpdateDistributorInvestorContractFee200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"DistributorInvestorContractsUpdateDistributorInvestorContractFee400", typeof DistributorInvestorContractsUpdateDistributorInvestorContractFee400.Type> | SpikoDistributorApiError<"DistributorInvestorContractsUpdateDistributorInvestorContractFee401", typeof DistributorInvestorContractsUpdateDistributorInvestorContractFee401.Type> | SpikoDistributorApiError<"DistributorInvestorContractsUpdateDistributorInvestorContractFee403", typeof DistributorInvestorContractsUpdateDistributorInvestorContractFee403.Type>>
+readonly "distributorInvestorContractsUpdateDistributorInvestorContractFee": <Config extends OperationConfig>(options: { readonly payload: typeof DistributorInvestorContractsUpdateDistributorInvestorContractFeeRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof DistributorInvestorContractsUpdateDistributorInvestorContractFee200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"DistributorInvestorContractsUpdateDistributorInvestorContractFee400", typeof DistributorInvestorContractsUpdateDistributorInvestorContractFee400.Type> | SpikoDistributorApiError<"DistributorInvestorContractsUpdateDistributorInvestorContractFee401", typeof DistributorInvestorContractsUpdateDistributorInvestorContractFee401.Type> | SpikoDistributorApiError<"DistributorInvestorContractsUpdateDistributorInvestorContractFee403", typeof DistributorInvestorContractsUpdateDistributorInvestorContractFee403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * Create a new contract that defines the annual fee paid by the investor to the distributor for a share class.
 */
-readonly "distributorInvestorContractsCreateDistributorInvestorContract": <Config extends OperationConfig>(options: { readonly payload: typeof DistributorInvestorContractsCreateDistributorInvestorContractRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof DistributorInvestorContractsCreateDistributorInvestorContract200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"DistributorInvestorContractsCreateDistributorInvestorContract400", typeof DistributorInvestorContractsCreateDistributorInvestorContract400.Type> | SpikoDistributorApiError<"DistributorInvestorContractsCreateDistributorInvestorContract401", typeof DistributorInvestorContractsCreateDistributorInvestorContract401.Type> | SpikoDistributorApiError<"DistributorInvestorContractsCreateDistributorInvestorContract403", typeof DistributorInvestorContractsCreateDistributorInvestorContract403.Type>>
+readonly "distributorInvestorContractsCreateDistributorInvestorContract": <Config extends OperationConfig>(options: { readonly payload: typeof DistributorInvestorContractsCreateDistributorInvestorContractRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof DistributorInvestorContractsCreateDistributorInvestorContract200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"DistributorInvestorContractsCreateDistributorInvestorContract400", typeof DistributorInvestorContractsCreateDistributorInvestorContract400.Type> | SpikoDistributorApiError<"DistributorInvestorContractsCreateDistributorInvestorContract401", typeof DistributorInvestorContractsCreateDistributorInvestorContract401.Type> | SpikoDistributorApiError<"DistributorInvestorContractsCreateDistributorInvestorContract403", typeof DistributorInvestorContractsCreateDistributorInvestorContract403.Type> | SpikoDistributorApiError<"404", undefined> | SpikoDistributorApiError<"405", undefined>>
   /**
 * **Retrieve the fees paid for the given distributor investor contract.**
 *
 * - Returns an array of paid fees both in amount and in number of shares, sorted by day.
 * - `from` and `to` query parameters are optional and used to filter the results by day range.
 */
-readonly "distributorInvestorContractsGetPaidFees": <Config extends OperationConfig>(distributorInvestorContractId: string, options: { readonly params?: typeof DistributorInvestorContractsGetPaidFeesParams.Encoded | undefined; readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof DistributorInvestorContractsGetPaidFees200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"DistributorInvestorContractsGetPaidFees400", typeof DistributorInvestorContractsGetPaidFees400.Type> | SpikoDistributorApiError<"DistributorInvestorContractsGetPaidFees401", typeof DistributorInvestorContractsGetPaidFees401.Type> | SpikoDistributorApiError<"DistributorInvestorContractsGetPaidFees403", typeof DistributorInvestorContractsGetPaidFees403.Type>>
+readonly "distributorInvestorContractsGetPaidFees": <Config extends OperationConfig>(distributorInvestorContractId: string, options: { readonly params?: typeof DistributorInvestorContractsGetPaidFeesParams.Encoded | undefined; readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof DistributorInvestorContractsGetPaidFees200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"DistributorInvestorContractsGetPaidFees400", typeof DistributorInvestorContractsGetPaidFees400.Type> | SpikoDistributorApiError<"DistributorInvestorContractsGetPaidFees401", typeof DistributorInvestorContractsGetPaidFees401.Type> | SpikoDistributorApiError<"DistributorInvestorContractsGetPaidFees403", typeof DistributorInvestorContractsGetPaidFees403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * Create a short-lived, single-use JWT for the investor to place orders directly from the distributor frontend.
 */
-readonly "investorTokensCreateInvestorToken": <Config extends OperationConfig>(options: { readonly payload: typeof InvestorTokensCreateInvestorTokenRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof InvestorTokensCreateInvestorToken200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"InvestorTokensCreateInvestorToken400", typeof InvestorTokensCreateInvestorToken400.Type> | SpikoDistributorApiError<"InvestorTokensCreateInvestorToken401", typeof InvestorTokensCreateInvestorToken401.Type> | SpikoDistributorApiError<"InvestorTokensCreateInvestorToken403", typeof InvestorTokensCreateInvestorToken403.Type>>
+readonly "investorTokensCreateInvestorToken": <Config extends OperationConfig>(options: { readonly payload: typeof InvestorTokensCreateInvestorTokenRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof InvestorTokensCreateInvestorToken200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"InvestorTokensCreateInvestorToken400", typeof InvestorTokensCreateInvestorToken400.Type> | SpikoDistributorApiError<"InvestorTokensCreateInvestorToken401", typeof InvestorTokensCreateInvestorToken401.Type> | SpikoDistributorApiError<"InvestorTokensCreateInvestorToken403", typeof InvestorTokensCreateInvestorToken403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * List all webhook configurations for the authenticated distributor.
 */
@@ -1884,19 +1905,19 @@ readonly "webhookConfigurationsCreateWebhookConfiguration": <Config extends Oper
   /**
 * Update the URL and topics of an active webhook configuration.
 */
-readonly "webhookConfigurationsUpdateWebhookConfiguration": <Config extends OperationConfig>(webhookConfigurationId: string, options: { readonly payload: typeof WebhookConfigurationsUpdateWebhookConfigurationRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof WebhookConfigurationsUpdateWebhookConfiguration200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"WebhookConfigurationsUpdateWebhookConfiguration400", typeof WebhookConfigurationsUpdateWebhookConfiguration400.Type> | SpikoDistributorApiError<"WebhookConfigurationsUpdateWebhookConfiguration401", typeof WebhookConfigurationsUpdateWebhookConfiguration401.Type> | SpikoDistributorApiError<"WebhookConfigurationsUpdateWebhookConfiguration403", typeof WebhookConfigurationsUpdateWebhookConfiguration403.Type>>
+readonly "webhookConfigurationsUpdateWebhookConfiguration": <Config extends OperationConfig>(webhookConfigurationId: string, options: { readonly payload: typeof WebhookConfigurationsUpdateWebhookConfigurationRequestJson.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof WebhookConfigurationsUpdateWebhookConfiguration200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"WebhookConfigurationsUpdateWebhookConfiguration400", typeof WebhookConfigurationsUpdateWebhookConfiguration400.Type> | SpikoDistributorApiError<"WebhookConfigurationsUpdateWebhookConfiguration401", typeof WebhookConfigurationsUpdateWebhookConfiguration401.Type> | SpikoDistributorApiError<"WebhookConfigurationsUpdateWebhookConfiguration403", typeof WebhookConfigurationsUpdateWebhookConfiguration403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * Disable an active webhook configuration. No more events will be delivered to this endpoint.
 */
-readonly "webhookConfigurationsDisableWebhookConfiguration": <Config extends OperationConfig>(webhookConfigurationId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof WebhookConfigurationsDisableWebhookConfiguration200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"WebhookConfigurationsDisableWebhookConfiguration400", typeof WebhookConfigurationsDisableWebhookConfiguration400.Type> | SpikoDistributorApiError<"WebhookConfigurationsDisableWebhookConfiguration401", typeof WebhookConfigurationsDisableWebhookConfiguration401.Type> | SpikoDistributorApiError<"WebhookConfigurationsDisableWebhookConfiguration403", typeof WebhookConfigurationsDisableWebhookConfiguration403.Type>>
+readonly "webhookConfigurationsDisableWebhookConfiguration": <Config extends OperationConfig>(webhookConfigurationId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof WebhookConfigurationsDisableWebhookConfiguration200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"WebhookConfigurationsDisableWebhookConfiguration400", typeof WebhookConfigurationsDisableWebhookConfiguration400.Type> | SpikoDistributorApiError<"WebhookConfigurationsDisableWebhookConfiguration401", typeof WebhookConfigurationsDisableWebhookConfiguration401.Type> | SpikoDistributorApiError<"WebhookConfigurationsDisableWebhookConfiguration403", typeof WebhookConfigurationsDisableWebhookConfiguration403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * Re-enable a disabled or circuit-broken webhook configuration.
 */
-readonly "webhookConfigurationsEnableWebhookConfiguration": <Config extends OperationConfig>(webhookConfigurationId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof WebhookConfigurationsEnableWebhookConfiguration200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"WebhookConfigurationsEnableWebhookConfiguration400", typeof WebhookConfigurationsEnableWebhookConfiguration400.Type> | SpikoDistributorApiError<"WebhookConfigurationsEnableWebhookConfiguration401", typeof WebhookConfigurationsEnableWebhookConfiguration401.Type> | SpikoDistributorApiError<"WebhookConfigurationsEnableWebhookConfiguration403", typeof WebhookConfigurationsEnableWebhookConfiguration403.Type>>
+readonly "webhookConfigurationsEnableWebhookConfiguration": <Config extends OperationConfig>(webhookConfigurationId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof WebhookConfigurationsEnableWebhookConfiguration200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"WebhookConfigurationsEnableWebhookConfiguration400", typeof WebhookConfigurationsEnableWebhookConfiguration400.Type> | SpikoDistributorApiError<"WebhookConfigurationsEnableWebhookConfiguration401", typeof WebhookConfigurationsEnableWebhookConfiguration401.Type> | SpikoDistributorApiError<"WebhookConfigurationsEnableWebhookConfiguration403", typeof WebhookConfigurationsEnableWebhookConfiguration403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * Generate a new signing secret. Both old and new secrets are valid for 24 hours. The new secret is returned only in this response.
 */
-readonly "webhookConfigurationsRotateWebhookSigningSecret": <Config extends OperationConfig>(webhookConfigurationId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof WebhookConfigurationsRotateWebhookSigningSecret200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"WebhookConfigurationsRotateWebhookSigningSecret400", typeof WebhookConfigurationsRotateWebhookSigningSecret400.Type> | SpikoDistributorApiError<"WebhookConfigurationsRotateWebhookSigningSecret401", typeof WebhookConfigurationsRotateWebhookSigningSecret401.Type> | SpikoDistributorApiError<"WebhookConfigurationsRotateWebhookSigningSecret403", typeof WebhookConfigurationsRotateWebhookSigningSecret403.Type>>
+readonly "webhookConfigurationsRotateWebhookSigningSecret": <Config extends OperationConfig>(webhookConfigurationId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof WebhookConfigurationsRotateWebhookSigningSecret200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"WebhookConfigurationsRotateWebhookSigningSecret400", typeof WebhookConfigurationsRotateWebhookSigningSecret400.Type> | SpikoDistributorApiError<"WebhookConfigurationsRotateWebhookSigningSecret401", typeof WebhookConfigurationsRotateWebhookSigningSecret401.Type> | SpikoDistributorApiError<"WebhookConfigurationsRotateWebhookSigningSecret403", typeof WebhookConfigurationsRotateWebhookSigningSecret403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * Retrieve webhook events using cursor-based pagination. Pass the last `sequenceNumber` as `after` to get the next page.
 */
@@ -1908,25 +1929,25 @@ readonly "webhookEventsListWebhookEvents": <Config extends OperationConfig>(opti
 * - Only active (non-archived) documents are returned.
 * - Optionally filter by `documentTypes` (e.g. [`official-id`, `proof-of-address`, `imprime-fiscal-unique`]).
 */
-readonly "investorDocumentsGetInvestorDocuments": <Config extends OperationConfig>(options: { readonly params: typeof InvestorDocumentsGetInvestorDocumentsParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof InvestorDocumentsGetInvestorDocuments200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"InvestorDocumentsGetInvestorDocuments400", typeof InvestorDocumentsGetInvestorDocuments400.Type> | SpikoDistributorApiError<"InvestorDocumentsGetInvestorDocuments401", typeof InvestorDocumentsGetInvestorDocuments401.Type> | SpikoDistributorApiError<"InvestorDocumentsGetInvestorDocuments403", typeof InvestorDocumentsGetInvestorDocuments403.Type>>
+readonly "investorDocumentsGetInvestorDocuments": <Config extends OperationConfig>(options: { readonly params: typeof InvestorDocumentsGetInvestorDocumentsParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof InvestorDocumentsGetInvestorDocuments200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"InvestorDocumentsGetInvestorDocuments400", typeof InvestorDocumentsGetInvestorDocuments400.Type> | SpikoDistributorApiError<"InvestorDocumentsGetInvestorDocuments401", typeof InvestorDocumentsGetInvestorDocuments401.Type> | SpikoDistributorApiError<"InvestorDocumentsGetInvestorDocuments403", typeof InvestorDocumentsGetInvestorDocuments403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Upload document (official ID / proof of address / screening report etc.) related to an investor.**
 *
 * - Supported extensions are: pdf, jpg, png, doc, docx, xls, xlsx.
 * - Returns the ID of the created investor document.
 */
-readonly "investorDocumentsUploadInvestorDocument": <Config extends OperationConfig>(options: { readonly payload: typeof InvestorDocumentsUploadInvestorDocumentRequestFormData.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof InvestorDocumentsUploadInvestorDocument200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"InvestorDocumentsUploadInvestorDocument400", typeof InvestorDocumentsUploadInvestorDocument400.Type> | SpikoDistributorApiError<"InvestorDocumentsUploadInvestorDocument401", typeof InvestorDocumentsUploadInvestorDocument401.Type> | SpikoDistributorApiError<"InvestorDocumentsUploadInvestorDocument403", typeof InvestorDocumentsUploadInvestorDocument403.Type>>
+readonly "investorDocumentsUploadInvestorDocument": <Config extends OperationConfig>(options: { readonly payload: typeof InvestorDocumentsUploadInvestorDocumentRequestFormData.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof InvestorDocumentsUploadInvestorDocument200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"InvestorDocumentsUploadInvestorDocument400", typeof InvestorDocumentsUploadInvestorDocument400.Type> | SpikoDistributorApiError<"InvestorDocumentsUploadInvestorDocument401", typeof InvestorDocumentsUploadInvestorDocument401.Type> | SpikoDistributorApiError<"InvestorDocumentsUploadInvestorDocument403", typeof InvestorDocumentsUploadInvestorDocument403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * **Get a signed URL to download a specific investor document.**
 *
 * - Returns a pre-signed URL that can be used to download the document.
 * - The URL is valid for a limited time.
 */
-readonly "investorDocumentsDownloadInvestorDocument": <Config extends OperationConfig>(investorDocumentId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof InvestorDocumentsDownloadInvestorDocument200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"InvestorDocumentsDownloadInvestorDocument400", typeof InvestorDocumentsDownloadInvestorDocument400.Type> | SpikoDistributorApiError<"InvestorDocumentsDownloadInvestorDocument401", typeof InvestorDocumentsDownloadInvestorDocument401.Type> | SpikoDistributorApiError<"InvestorDocumentsDownloadInvestorDocument403", typeof InvestorDocumentsDownloadInvestorDocument403.Type>>
+readonly "investorDocumentsDownloadInvestorDocument": <Config extends OperationConfig>(investorDocumentId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof InvestorDocumentsDownloadInvestorDocument200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"InvestorDocumentsDownloadInvestorDocument400", typeof InvestorDocumentsDownloadInvestorDocument400.Type> | SpikoDistributorApiError<"InvestorDocumentsDownloadInvestorDocument401", typeof InvestorDocumentsDownloadInvestorDocument401.Type> | SpikoDistributorApiError<"InvestorDocumentsDownloadInvestorDocument403", typeof InvestorDocumentsDownloadInvestorDocument403.Type> | SpikoDistributorApiError<"404", undefined>>
   /**
 * Retrieve wallet information by providing the wallet ID.
 */
-readonly "walletsGetWallet": <Config extends OperationConfig>(walletId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof WalletsGetWallet200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"WalletsGetWallet400", typeof WalletsGetWallet400.Type> | SpikoDistributorApiError<"WalletsGetWallet401", typeof WalletsGetWallet401.Type> | SpikoDistributorApiError<"WalletsGetWallet403", typeof WalletsGetWallet403.Type>>
+readonly "walletsGetWallet": <Config extends OperationConfig>(walletId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof WalletsGetWallet200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoDistributorApiError<"WalletsGetWallet400", typeof WalletsGetWallet400.Type> | SpikoDistributorApiError<"WalletsGetWallet401", typeof WalletsGetWallet401.Type> | SpikoDistributorApiError<"WalletsGetWallet403", typeof WalletsGetWallet403.Type> | SpikoDistributorApiError<"404", undefined>>
 }
 
 export interface SpikoDistributorApiError<Tag extends string, E> {
