@@ -1,5 +1,11 @@
 # spiko-mcp
 
+## 0.4.0
+
+### Minor Changes
+
+- [#14](https://github.com/wewelll/spiko-ai-toolkit/pull/14) [`21bffbf`](https://github.com/wewelll/spiko-ai-toolkit/commit/21bffbfd61126a5f0d47a1b97e35fd1fa30ff8a8) Thanks [@wewelll](https://github.com/wewelll)! - Upgrade Effect and its platform and OpenAPI generator packages to 4.0.0-rc.112.
+
 ## 0.3.0
 
 ### Minor Changes
