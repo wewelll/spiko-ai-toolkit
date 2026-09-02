@@ -167,6 +167,9 @@ export const make = (
           )
       : (request) => Effect.flatMap(httpClient.execute(request), withOptionalResponse)
   }
+  const decodeVoidError = <const Tag extends string>(tag: Tag) =>
+    (response: HttpClientResponse.HttpClientResponse) =>
+      Effect.fail(SpikoPublicApiError(tag, undefined, response))
   const decodeSuccess =
     <Schema extends Schema.Constraint>(schema: Schema) =>
     (response: HttpClientResponse.HttpClientResponse) =>
@@ -184,7 +187,7 @@ export const make = (
     withResponse(options?.config)(HttpClientResponse.matchStatus({
       "2xx": decodeSuccess(GetFund200),
       "400": decodeError("GetFund400", GetFund400),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -206,7 +209,7 @@ export const make = (
     withResponse(options?.config)(HttpClientResponse.matchStatus({
       "2xx": decodeSuccess(GetShareClass200),
       "400": decodeError("GetShareClass400", GetShareClass400),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -214,7 +217,7 @@ export const make = (
     withResponse(options?.config)(HttpClientResponse.matchStatus({
       "2xx": decodeSuccess(GetShareClassYield200),
       "400": decodeError("GetShareClassYield400", GetShareClassYield400),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -222,7 +225,7 @@ export const make = (
     withResponse(options?.config)(HttpClientResponse.matchStatus({
       "2xx": decodeSuccess(GetShareClassTotals200),
       "400": decodeError("GetShareClassTotals400", GetShareClassTotals400),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -231,7 +234,7 @@ export const make = (
     withResponse(options.config)(HttpClientResponse.matchStatus({
       "2xx": decodeSuccess(GetShareClassTotalsFromDay200),
       "400": decodeError("GetShareClassTotalsFromDay400", GetShareClassTotalsFromDay400),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -239,7 +242,7 @@ export const make = (
     withResponse(options?.config)(HttpClientResponse.matchStatus({
       "2xx": decodeSuccess(GetNetAssetValue200),
       "400": decodeError("GetNetAssetValue400", GetNetAssetValue400),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -248,7 +251,7 @@ export const make = (
     withResponse(options.config)(HttpClientResponse.matchStatus({
       "2xx": decodeSuccess(GetNetAssetValues200),
       "400": decodeError("GetNetAssetValues400", GetNetAssetValues400),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -256,7 +259,7 @@ export const make = (
     withResponse(options?.config)(HttpClientResponse.matchStatus({
       "2xx": decodeSuccess(GetLatestNetAssetValue200),
       "400": decodeError("GetLatestNetAssetValue400", GetLatestNetAssetValue400),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -265,8 +268,8 @@ export const make = (
     withResponse(options.config)(HttpClientResponse.matchStatus({
       "2xx": decodeSuccess(GetIndexValues200),
       "400": decodeError("GetIndexValues400", GetIndexValues400),
-      "404": () => Effect.void,
-      "503": () => Effect.void,
+      "404": decodeVoidError("404"),
+      "503": decodeVoidError("503"),
       orElse: unexpectedStatus
     }))
   ),
@@ -275,8 +278,8 @@ export const make = (
     withResponse(options.config)(HttpClientResponse.matchStatus({
       "2xx": decodeSuccess(GetSPKCCChartData200),
       "400": decodeError("GetSPKCCChartData400", GetSPKCCChartData400),
-      "404": () => Effect.void,
-      "503": () => Effect.void,
+      "404": decodeVoidError("404"),
+      "503": decodeVoidError("503"),
       orElse: unexpectedStatus
     }))
   ),
@@ -285,7 +288,7 @@ export const make = (
     withResponse(options.config)(HttpClientResponse.matchStatus({
       "2xx": decodeSuccess(GetAllFundAssets200),
       "400": decodeError("GetAllFundAssets400", GetAllFundAssets400),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -293,7 +296,7 @@ export const make = (
     withResponse(options?.config)(HttpClientResponse.matchStatus({
       "2xx": decodeSuccess(GetExchangeRateByID200),
       "400": decodeError("GetExchangeRateByID400", GetExchangeRateByID400),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   ),
@@ -302,7 +305,7 @@ export const make = (
     withResponse(options.config)(HttpClientResponse.matchStatus({
       "2xx": decodeSuccess(GetLatestExchangeRate200),
       "400": decodeError("GetLatestExchangeRate400", GetLatestExchangeRate400),
-      "404": () => Effect.void,
+      "404": decodeVoidError("404"),
       orElse: unexpectedStatus
     }))
   )
@@ -311,21 +314,21 @@ export const make = (
 
 export interface SpikoPublicApi {
   readonly httpClient: HttpClient.HttpClient
-  readonly "GetFund": <Config extends OperationConfig>(fundId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof GetFund200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetFund400", typeof GetFund400.Type>>
+  readonly "GetFund": <Config extends OperationConfig>(fundId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof GetFund200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetFund400", typeof GetFund400.Type> | SpikoPublicApiError<"404", undefined>>
   readonly "GetAllFunds": <Config extends OperationConfig>(options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof GetAllFunds200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetAllFunds400", typeof GetAllFunds400.Type>>
   readonly "GetAllShareClasses": <Config extends OperationConfig>(options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof GetAllShareClasses200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetAllShareClasses400", typeof GetAllShareClasses400.Type>>
-  readonly "GetShareClass": <Config extends OperationConfig>(shareClassSymbol: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof GetShareClass200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetShareClass400", typeof GetShareClass400.Type>>
-  readonly "GetShareClassYield": <Config extends OperationConfig>(shareClassSymbol: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof GetShareClassYield200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetShareClassYield400", typeof GetShareClassYield400.Type>>
-  readonly "GetShareClassTotals": <Config extends OperationConfig>(shareClassSymbol: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof GetShareClassTotals200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetShareClassTotals400", typeof GetShareClassTotals400.Type>>
-  readonly "GetShareClassTotalsFromDay": <Config extends OperationConfig>(shareClassSymbol: string, options: { readonly params: typeof GetShareClassTotalsFromDayParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof GetShareClassTotalsFromDay200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetShareClassTotalsFromDay400", typeof GetShareClassTotalsFromDay400.Type>>
-  readonly "GetNetAssetValue": <Config extends OperationConfig>(shareClassSymbol: string, day: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof GetNetAssetValue200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetNetAssetValue400", typeof GetNetAssetValue400.Type>>
-  readonly "GetNetAssetValues": <Config extends OperationConfig>(shareClassSymbol: string, options: { readonly params: typeof GetNetAssetValuesParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof GetNetAssetValues200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetNetAssetValues400", typeof GetNetAssetValues400.Type>>
-  readonly "GetLatestNetAssetValue": <Config extends OperationConfig>(shareClassSymbol: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof GetLatestNetAssetValue200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetLatestNetAssetValue400", typeof GetLatestNetAssetValue400.Type>>
-  readonly "GetIndexValues": <Config extends OperationConfig>(shareClassSymbol: string, options: { readonly params: typeof GetIndexValuesParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof GetIndexValues200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetIndexValues400", typeof GetIndexValues400.Type>>
-  readonly "GetSPKCCChartData": <Config extends OperationConfig>(options: { readonly params: typeof GetSPKCCChartDataParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof GetSPKCCChartData200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetSPKCCChartData400", typeof GetSPKCCChartData400.Type>>
-  readonly "GetAllFundAssets": <Config extends OperationConfig>(options: { readonly params: typeof GetAllFundAssetsParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof GetAllFundAssets200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetAllFundAssets400", typeof GetAllFundAssets400.Type>>
-  readonly "GetExchangeRateByID": <Config extends OperationConfig>(exchangeRateId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof GetExchangeRateByID200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetExchangeRateByID400", typeof GetExchangeRateByID400.Type>>
-  readonly "GetLatestExchangeRate": <Config extends OperationConfig>(options: { readonly params: typeof GetLatestExchangeRateParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof GetLatestExchangeRate200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetLatestExchangeRate400", typeof GetLatestExchangeRate400.Type>>
+  readonly "GetShareClass": <Config extends OperationConfig>(shareClassSymbol: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof GetShareClass200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetShareClass400", typeof GetShareClass400.Type> | SpikoPublicApiError<"404", undefined>>
+  readonly "GetShareClassYield": <Config extends OperationConfig>(shareClassSymbol: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof GetShareClassYield200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetShareClassYield400", typeof GetShareClassYield400.Type> | SpikoPublicApiError<"404", undefined>>
+  readonly "GetShareClassTotals": <Config extends OperationConfig>(shareClassSymbol: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof GetShareClassTotals200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetShareClassTotals400", typeof GetShareClassTotals400.Type> | SpikoPublicApiError<"404", undefined>>
+  readonly "GetShareClassTotalsFromDay": <Config extends OperationConfig>(shareClassSymbol: string, options: { readonly params: typeof GetShareClassTotalsFromDayParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof GetShareClassTotalsFromDay200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetShareClassTotalsFromDay400", typeof GetShareClassTotalsFromDay400.Type> | SpikoPublicApiError<"404", undefined>>
+  readonly "GetNetAssetValue": <Config extends OperationConfig>(shareClassSymbol: string, day: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof GetNetAssetValue200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetNetAssetValue400", typeof GetNetAssetValue400.Type> | SpikoPublicApiError<"404", undefined>>
+  readonly "GetNetAssetValues": <Config extends OperationConfig>(shareClassSymbol: string, options: { readonly params: typeof GetNetAssetValuesParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof GetNetAssetValues200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetNetAssetValues400", typeof GetNetAssetValues400.Type> | SpikoPublicApiError<"404", undefined>>
+  readonly "GetLatestNetAssetValue": <Config extends OperationConfig>(shareClassSymbol: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof GetLatestNetAssetValue200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetLatestNetAssetValue400", typeof GetLatestNetAssetValue400.Type> | SpikoPublicApiError<"404", undefined>>
+  readonly "GetIndexValues": <Config extends OperationConfig>(shareClassSymbol: string, options: { readonly params: typeof GetIndexValuesParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof GetIndexValues200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetIndexValues400", typeof GetIndexValues400.Type> | SpikoPublicApiError<"404", undefined> | SpikoPublicApiError<"503", undefined>>
+  readonly "GetSPKCCChartData": <Config extends OperationConfig>(options: { readonly params: typeof GetSPKCCChartDataParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof GetSPKCCChartData200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetSPKCCChartData400", typeof GetSPKCCChartData400.Type> | SpikoPublicApiError<"404", undefined> | SpikoPublicApiError<"503", undefined>>
+  readonly "GetAllFundAssets": <Config extends OperationConfig>(options: { readonly params: typeof GetAllFundAssetsParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof GetAllFundAssets200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetAllFundAssets400", typeof GetAllFundAssets400.Type> | SpikoPublicApiError<"404", undefined>>
+  readonly "GetExchangeRateByID": <Config extends OperationConfig>(exchangeRateId: string, options: { readonly config?: Config | undefined } | undefined) => Effect.Effect<WithOptionalResponse<typeof GetExchangeRateByID200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetExchangeRateByID400", typeof GetExchangeRateByID400.Type> | SpikoPublicApiError<"404", undefined>>
+  readonly "GetLatestExchangeRate": <Config extends OperationConfig>(options: { readonly params: typeof GetLatestExchangeRateParams.Encoded; readonly config?: Config | undefined }) => Effect.Effect<WithOptionalResponse<typeof GetLatestExchangeRate200.Type, Config>, HttpClientError.HttpClientError | SchemaError | SpikoPublicApiError<"GetLatestExchangeRate400", typeof GetLatestExchangeRate400.Type> | SpikoPublicApiError<"404", undefined>>
 }
 
 export interface SpikoPublicApiError<Tag extends string, E> {

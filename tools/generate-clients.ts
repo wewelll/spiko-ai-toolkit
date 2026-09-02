@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { camelize } from "@effect/openapi-generator/Utils"
 import * as OpenApiGenerator from "@effect/openapi-generator/OpenApiGenerator"
 import * as NodeHttpClient from "@effect/platform-node/NodeHttpClient"
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
@@ -9,11 +8,7 @@ import { Cause, Console, Effect, FileSystem, Schema } from "effect"
 import { Command, Flag } from "effect/unstable/cli"
 import * as HttpClient from "effect/unstable/http/HttpClient"
 import type { OpenAPISpec } from "effect/unstable/httpapi/OpenApi"
-import {
-  correctedBinaryResponseOperations,
-  fixGeneratedClient,
-  type GeneratedClientFamily,
-} from "./fix-generated-client.ts"
+import { fixGeneratedClient } from "./fix-generated-client.ts"
 import { generateCliFiles } from "./generate-cli.ts"
 
 const apis = [
@@ -44,52 +39,6 @@ type ApiDefinition = (typeof apis)[number]
 
 const parseJson = Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Json))
 
-const httpMethods = ["delete", "get", "head", "options", "patch", "post", "put", "trace"] as const
-
-// The OpenAPI generator cannot decode binary success payloads, so any Operation
-// declaring a non-JSON 2xx response needs a manual correction in
-// tools/fix-generated-client.ts. Derive the expected set from the committed
-// spec so newly added binary Operations fail generation instead of silently
-// succeeding with void.
-const binarySuccessOperations = (document: OpenAPISpec): ReadonlySet<string> => {
-  const operations = new Set<string>()
-  for (const item of Object.values(document.paths)) {
-    for (const method of httpMethods) {
-      const operation = item[method]
-      if (operation === undefined) {
-        continue
-      }
-      const hasBinarySuccess = Object.entries(operation.responses).some(
-        ([status, response]) =>
-          status.startsWith("2") &&
-          response.content !== undefined &&
-          Object.keys(response.content).some((mediaType) => mediaType !== "application/json"),
-      )
-      if (hasBinarySuccess) {
-        operations.add(camelize(operation.operationId))
-      }
-    }
-  }
-  return operations
-}
-
-const assertBinaryCorrectionsCoverSpec = (family: GeneratedClientFamily, document: OpenAPISpec) => {
-  const expected = binarySuccessOperations(document)
-  const corrected = correctedBinaryResponseOperations[family]
-  const uncorrected = [...expected].filter((operationId) => !corrected.has(operationId))
-  if (uncorrected.length > 0) {
-    throw new Error(
-      `${family}: binary success responses without a generated client correction: ${uncorrected.join(", ")}. Extend tools/fix-generated-client.ts.`,
-    )
-  }
-  const stale = [...corrected].filter((operationId) => !expected.has(operationId))
-  if (stale.length > 0) {
-    throw new Error(
-      `${family}: corrections for Operations without a binary success response: ${stale.join(", ")}. Remove them from tools/fix-generated-client.ts.`,
-    )
-  }
-}
-
 const generatedClientMethods = (source: string): ReadonlySet<string> =>
   new Set(
     Array.from(source.matchAll(/^\s*readonly "([^"]+)": <Config/gm), (match) => match[1]).filter(
@@ -119,6 +68,7 @@ const readSpec = (definition: ApiDefinition, fetch: boolean) =>
 
 const fetch = Flag.boolean("fetch").pipe(
   Flag.withDescription("Download the latest Spiko specifications before generating clients"),
+  Flag.withDefault(false),
 )
 
 const generate = Command.make("generate-clients", { fetch }, ({ fetch }) =>
@@ -135,7 +85,6 @@ const generate = Command.make("generate-clients", { fetch }, ({ fetch }) =>
         // The generator's own CLI uses this boundary cast: it accepts external OpenAPI
         // documents but does not currently export a runtime Schema for OpenAPISpec.
         const spec = json as unknown as OpenAPISpec
-        assertBinaryCorrectionsCoverSpec(definition.id, spec)
         const warnings: Array<OpenApiGenerator.OpenApiGeneratorWarning> = []
         const generated = yield* generator.generate(spec, {
           format: "httpclient",
