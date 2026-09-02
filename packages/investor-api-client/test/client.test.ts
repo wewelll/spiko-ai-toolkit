@@ -1,8 +1,9 @@
-import { Effect, Redacted } from "effect"
+import { Effect, Redacted, Stream } from "effect"
 import * as HttpClient from "effect/unstable/http/HttpClient"
 import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest"
 import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse"
 import { describe, expect, it } from "vitest"
+import * as Generated from "../src/generated.ts"
 import { make } from "../src/index.ts"
 
 const auth = { accessToken: Redacted.make("secret-token"), type: "bearer" } as const
@@ -42,5 +43,48 @@ describe("Investor client", () => {
     )
 
     expect(statement).toEqual(bytes)
+  })
+
+  it("applies transformClient to binary streams", async () => {
+    const bytes = new Uint8Array([37, 80, 68, 70])
+    let transformCalls = 0
+    let observedRequest: HttpClientRequest.HttpClientRequest | undefined
+    const client = Generated.make(
+      HttpClient.make(() => Effect.die("base client must not execute")),
+      {
+        transformClient: () => {
+          transformCalls += 1
+          return Effect.succeed(
+            HttpClient.make((request) => {
+              observedRequest = request
+              return Effect.succeed(
+                HttpClientResponse.fromWeb(request, new Response(bytes, { status: 200 })),
+              )
+            }).pipe(
+              HttpClient.mapRequest(
+                HttpClientRequest.prependUrl("https://investor.example.test/v1"),
+              ),
+            ),
+          )
+        },
+      },
+    )
+
+    const result = await Effect.runPromise(
+      Stream.runCollect(
+        client.accountingPositionsDownloadAccountStatementStream({
+          params: {
+            from: "2025-01-01",
+            investorId: "00000000-0000-4000-8000-000000000001",
+            shareClassSymbol: "EUTBL",
+            to: "2025-01-31",
+          },
+        }),
+      ),
+    )
+
+    expect(transformCalls).toBe(1)
+    expect(observedRequest).toBeDefined()
+    expect(Array.from(result)).toEqual([bytes])
   })
 })

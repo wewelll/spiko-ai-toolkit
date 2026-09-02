@@ -399,9 +399,14 @@ export const make = (
   const decodeBinary = (response: HttpClientResponse.HttpClientResponse) =>
     Effect.map(response.arrayBuffer, (buffer) => new Uint8Array(buffer))
   const binaryRequest = (request: HttpClientRequest.HttpClientRequest): Stream.Stream<Uint8Array, HttpClientError.HttpClientError> =>
-    HttpClient.filterStatusOk(httpClient).execute(request).pipe(
+    (options?.transformClient
+      ? Effect.flatMap(options.transformClient(httpClient), (client) =>
+          HttpClient.filterStatusOk(client).execute(request),
+        )
+      : HttpClient.filterStatusOk(httpClient).execute(request)
+    ).pipe(
       Effect.map((response) => response.stream),
-      Stream.unwrap
+      Stream.unwrap,
     )
   const decodeVoidError = <const Tag extends string>(tag: Tag) =>
     (response: HttpClientResponse.HttpClientResponse) =>
