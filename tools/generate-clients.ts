@@ -10,6 +10,7 @@ import * as HttpClient from "effect/unstable/http/HttpClient"
 import type { OpenAPISpec } from "effect/unstable/httpapi/OpenApi"
 import { fixGeneratedClient } from "./fix-generated-client.ts"
 import { generateCliFiles } from "./generate-cli.ts"
+import { findUnsupportedSuccessMediaTypes } from "./validate-openapi.ts"
 
 const apis = [
   {
@@ -85,6 +86,17 @@ const generate = Command.make("generate-clients", { fetch }, ({ fetch }) =>
         // The generator's own CLI uses this boundary cast: it accepts external OpenAPI
         // documents but does not currently export a runtime Schema for OpenAPISpec.
         const spec = json as unknown as OpenAPISpec
+        const unsupported = findUnsupportedSuccessMediaTypes(spec)
+        if (unsupported.length > 0) {
+          throw new Error(
+            `${definition.id}: unsupported success response media types: ${unsupported
+              .map(
+                ({ operationId, path, status, mediaType }) =>
+                  `${operationId} ${status} ${path} (${mediaType})`,
+              )
+              .join(", ")}`,
+          )
+        }
         const warnings: Array<OpenApiGenerator.OpenApiGeneratorWarning> = []
         const generated = yield* generator.generate(spec, {
           format: "httpclient",

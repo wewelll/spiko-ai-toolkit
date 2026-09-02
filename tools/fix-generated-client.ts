@@ -21,6 +21,13 @@ interface Correction {
   readonly replacement: string
 }
 
+const binaryRequestTransformCorrection: Correction = {
+  expected:
+    "const binaryRequest = (request: HttpClientRequest.HttpClientRequest): Stream.Stream<Uint8Array, HttpClientError.HttpClientError> =>\n    HttpClient.filterStatusOk(httpClient).execute(request).pipe(\n      Effect.map((response) => response.stream),\n      Stream.unwrap\n    )",
+  replacement:
+    "const binaryRequest = (request: HttpClientRequest.HttpClientRequest): Stream.Stream<Uint8Array, HttpClientError.HttpClientError> =>\n    (options?.transformClient\n      ? Effect.flatMap(options.transformClient(httpClient), (client) =>\n          HttpClient.filterStatusOk(client).execute(request),\n        )\n      : HttpClient.filterStatusOk(httpClient).execute(request)\n    ).pipe(\n      Effect.map((response) => response.stream),\n      Stream.unwrap,\n    )",
+}
+
 const applyCorrections = (
   label: string,
   generated: string,
@@ -52,9 +59,11 @@ const fixDistributor = (generated: string): string =>
       expected: "HttpClientRequest.bodyFormData(options.payload as any)",
       replacement: "HttpClientRequest.bodyFormDataRecord(options.payload)",
     },
+    binaryRequestTransformCorrection,
   ])
 
-const fixInvestor = (generated: string): string => generated
+const fixInvestor = (generated: string): string =>
+  applyCorrections("Investor generated client", generated, [binaryRequestTransformCorrection])
 
 export const fixGeneratedClient = (family: GeneratedClientFamily, generated: string): string => {
   switch (family) {
