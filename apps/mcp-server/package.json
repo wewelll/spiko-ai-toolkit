@@ -9,12 +9,12 @@
     "model-context-protocol",
     "spiko"
   ],
-  "homepage": "https://github.com/wewelll/spiko-ai-toolkit#readme",
-  "bugs": "https://github.com/wewelll/spiko-ai-toolkit/issues",
+  "homepage": "https://github.com/samuelbriole/spiko-ai-toolkit#readme",
+  "bugs": "https://github.com/samuelbriole/spiko-ai-toolkit/issues",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/wewelll/spiko-ai-toolkit.git",
+    "url": "git+https://github.com/samuelbriole/spiko-ai-toolkit.git",
     "directory": "apps/mcp-server"
   },
   "bin": {

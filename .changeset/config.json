@@ -3,7 +3,7 @@
   "changelog": [
     "@changesets/changelog-github",
     {
-      "repo": "wewelll/spiko-ai-toolkit"
+      "repo": "samuelbriole/spiko-ai-toolkit"
     }
   ],
   "commit": false,

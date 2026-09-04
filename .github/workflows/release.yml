@@ -12,7 +12,7 @@ permissions: {}
 
 jobs:
   release:
-    if: github.repository_owner == 'wewelll'
+    if: github.repository_owner == 'samuelbriole'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:

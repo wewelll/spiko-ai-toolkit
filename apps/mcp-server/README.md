@@ -19,7 +19,7 @@ Configure the server in your MCP client:
 }
 ```
 
-See the [Spiko AI Toolkit repository](https://github.com/wewelll/spiko-ai-toolkit) for documentation and source code.
+See the [Spiko AI Toolkit repository](https://github.com/samuelbriole/spiko-ai-toolkit) for documentation and source code.
 
 ## License
 
